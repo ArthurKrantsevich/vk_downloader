@@ -39,11 +39,11 @@ class HomeController extends ChangeNotifier {
     required MediaUrlNormalizer urlNormalizer,
     required MediaDownloadService downloadService,
     this.onLog,
-  })  : _preferences = preferences,
-        _secureStorage = secureStorage,
-        _mediaFilter = mediaFilter,
-        _urlNormalizer = urlNormalizer,
-        _downloadService = downloadService;
+  }) : _preferences = preferences,
+       _secureStorage = secureStorage,
+       _mediaFilter = mediaFilter,
+       _urlNormalizer = urlNormalizer,
+       _downloadService = downloadService;
 
   final PreferencesStore _preferences;
   final SecureStorageClient _secureStorage;
@@ -53,6 +53,7 @@ class HomeController extends ChangeNotifier {
   final void Function(String message)? onLog;
 
   HomeState _state = HomeState.initial();
+
   HomeState get state => _state;
 
   InAppWebViewController? webViewController;
@@ -122,7 +123,8 @@ class HomeController extends ChangeNotifier {
 
   Future<void> _restorePreferences() async {
     _prefsCache = await _preferences.read();
-    final visited = (_prefsCache[_kPrefsVisitedKey] as List?)?.cast<String>() ??
+    final visited =
+        (_prefsCache[_kPrefsVisitedKey] as List?)?.cast<String>() ??
         const <String>[];
     final storedSearch = (_prefsCache[_kPrefsSearchKey] as String?) ?? '';
     final isSidePanelVisible =
@@ -155,6 +157,7 @@ class HomeController extends ChangeNotifier {
       bulkDownloadTotal: newState.bulkDownloadTotal,
       bulkDownloadProcessed: newState.bulkDownloadProcessed,
       bulkDownloadSucceeded: newState.bulkDownloadSucceeded,
+      isBulkCancelRequested: newState.isBulkCancelRequested,
     );
     notifyListeners();
   }
@@ -214,14 +217,8 @@ class HomeController extends ChangeNotifier {
           ),
         )
         .toList(growable: false);
-    _thumbnailCache
-      ..removeWhere((key, _) => !filtered.contains(key));
-    _emit(
-      state.copyWith(
-        mediaItems: mediaItems,
-        selectedMedia: <String>{},
-      ),
-    );
+    _thumbnailCache..removeWhere((key, _) => !filtered.contains(key));
+    _emit(state.copyWith(mediaItems: mediaItems, selectedMedia: <String>{}));
     _log('mediaHandler: raw=${rawUrls.length}, filtered=${mediaItems.length}');
   }
 
@@ -271,7 +268,9 @@ class HomeController extends ChangeNotifier {
 
   Future<void> saveCookiesForUrl(String url) async {
     try {
-      final cookies = await CookieManager.instance().getCookies(url: WebUri(url));
+      final cookies = await CookieManager.instance().getCookies(
+        url: WebUri(url),
+      );
       if (cookies.isEmpty) {
         _log('saveCookies: none for $url');
         return;
@@ -300,7 +299,8 @@ class HomeController extends ChangeNotifier {
     final controller = webViewController;
     if (controller == null) return;
     try {
-      final result = await controller.evaluateJavascript(source: '''
+      final result = await controller.evaluateJavascript(
+        source: '''
         (function(){
           try {
             const vkObj = window?.vk || window?.VK || {};
@@ -323,7 +323,8 @@ class HomeController extends ChangeNotifier {
             return { id: id, name: name, avatar: avatar };
           } catch(e) { return null; }
         })();
-      ''');
+      ''',
+      );
       if (result is Map) {
         final info = <String, String>{};
         result.forEach((key, value) {
@@ -362,7 +363,9 @@ class HomeController extends ChangeNotifier {
     var succeeded = 0;
     var processed = 0;
     final downloaded = <String>[];
-    final referer = state.currentUrl.isEmpty ? 'https://vk.com/' : state.currentUrl;
+    final referer = state.currentUrl.isEmpty
+        ? 'https://vk.com/'
+        : state.currentUrl;
     var canceled = false;
     for (var index = 0; index < urls.length; index++) {
       if (_bulkCancelRequested) {
@@ -390,7 +393,7 @@ class HomeController extends ChangeNotifier {
       }
       if ((index + 1) % 5 == 0 && index + 1 < urls.length) {
         for (var delay = 0; delay < 2 && !_bulkCancelRequested; delay++) {
-          await Future.delayed(const Duration(seconds: 1));
+          await Future.delayed(const Duration(seconds: 2));
         }
         if (_bulkCancelRequested) {
           canceled = true;
@@ -421,7 +424,9 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<String?> downloadSingleMedia(String url) async {
-    final referer = state.currentUrl.isEmpty ? 'https://vk.com/' : state.currentUrl;
+    final referer = state.currentUrl.isEmpty
+        ? 'https://vk.com/'
+        : state.currentUrl;
     return _downloadService.downloadToDisk(url, referer);
   }
 
@@ -437,7 +442,9 @@ class HomeController extends ChangeNotifier {
     if (_thumbnailCache.containsKey(url)) {
       return _thumbnailCache[url];
     }
-    final referer = state.currentUrl.isEmpty ? 'https://vk.com/' : state.currentUrl;
+    final referer = state.currentUrl.isEmpty
+        ? 'https://vk.com/'
+        : state.currentUrl;
     final bytes = await _downloadService.loadThumbnail(url, referer);
     _thumbnailCache[url] = bytes;
     return bytes;
