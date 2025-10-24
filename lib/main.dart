@@ -75,6 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSidePanelVisible = true;
   String _mediaSearch = '';
   bool _isBulkDownloading = false;
+  bool _bulkCancelRequested = false;
+  int _bulkDownloadTotal = 0;
+  int _bulkDownloadProcessed = 0;
+  int _bulkDownloadSucceeded = 0;
 
   bool get _isDesktop =>
       !kIsWeb &&
@@ -263,30 +267,89 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedMedia.clear());
   }
 
+  void _requestStopBulkDownload() {
+    if (!_isBulkDownloading || _bulkCancelRequested) return;
+    setState(() => _bulkCancelRequested = true);
+  }
+
+  void _clearFoundMedia(BuildContext context) {
+    if (_mediaUrlsRaw.isEmpty) return;
+    setState(() {
+      _mediaUrlsRaw.clear();
+      _thumbCache.clear();
+      _selectedMedia.clear();
+    });
+    _log('media list cleared');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cleared media list')),
+      );
+    }
+  }
+
   Future<void> _downloadSelectedMedia(BuildContext context) async {
     if (_selectedMedia.isEmpty || _isBulkDownloading) return;
-    setState(() => _isBulkDownloading = true);
     final urls = _selectedMedia.toList(growable: false);
+    setState(() {
+      _isBulkDownloading = true;
+      _bulkCancelRequested = false;
+      _bulkDownloadTotal = urls.length;
+      _bulkDownloadProcessed = 0;
+      _bulkDownloadSucceeded = 0;
+    });
     final downloaded = <String>[];
-    for (final url in urls) {
+    final total = urls.length;
+    var canceled = false;
+    for (var i = 0; i < urls.length; i++) {
+      if (_bulkCancelRequested) {
+        canceled = true;
+        break;
+      }
+      final url = urls[i];
       final path = await _downloadToDisk(url);
-      if (path != null) {
+      if (!mounted) return;
+      final success = path != null;
+      setState(() {
+        _bulkDownloadProcessed++;
+        if (success) {
+          _bulkDownloadSucceeded++;
+        }
+      });
+      if (success) {
         downloaded.add(url);
+      }
+      if (_bulkCancelRequested) {
+        canceled = true;
+        break;
+      }
+      if ((i + 1) % 5 == 0 && i + 1 < total) {
+        for (var s = 0; s < 2 && !_bulkCancelRequested; s++) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
+        if (_bulkCancelRequested) {
+          canceled = true;
+          break;
+        }
       }
     }
     if (!mounted) return;
     setState(() {
       _isBulkDownloading = false;
+      _bulkCancelRequested = false;
+      _bulkDownloadTotal = 0;
+      _bulkDownloadProcessed = 0;
+      _bulkDownloadSucceeded = 0;
       for (final url in downloaded) {
         _selectedMedia.remove(url);
       }
     });
     final success = downloaded.length;
-    final total = urls.length;
     final failed = total - success;
-    final msg = failed == 0
-        ? 'Downloaded $success files'
-        : 'Downloaded $success of $total files';
+    final msg = canceled
+        ? 'Stopped after $success of $total files'
+        : (failed == 0
+            ? 'Downloaded $success files'
+            : 'Downloaded $success of $total files');
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
@@ -950,6 +1013,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Chip(label: Text('${filteredMedia.length}')),
               IconButton(
+                tooltip: 'Clear media list',
+                icon: const Icon(Icons.delete_sweep),
+                onPressed: _isBulkDownloading || mediaHq.isEmpty
+                    ? null
+                    : () => _clearFoundMedia(context),
+              ),
+              IconButton(
                 tooltip: 'Collapse media panel',
                 icon: const Icon(Icons.keyboard_double_arrow_right),
                 onPressed: () => _setSidePanelVisible(false),
@@ -981,42 +1051,89 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: 240,
-                child: FilledButton.icon(
-                  onPressed: selectedCount > 0 && !_isBulkDownloading
-                      ? () => _downloadSelectedMedia(context)
-                      : null,
-                  icon: _isBulkDownloading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.download_for_offline),
-                  label: Text(
-                    selectedCount > 0
-                        ? 'Download selected ($selectedCount)'
-                        : 'Download selected',
-                  ),
+              if (_isBulkDownloading)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: _bulkDownloadTotal > 0
+                          ? _bulkDownloadProcessed / _bulkDownloadTotal
+                          : null,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Saved $_bulkDownloadSucceeded of $_bulkDownloadTotal files${_bulkCancelRequested ? ' — stopping…' : ''}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                 ),
-              ),
-              OutlinedButton.icon(
-                onPressed: filteredMedia.isEmpty
-                    ? null
-                    : () => _selectAllMedia(filteredMedia),
-                icon: const Icon(Icons.select_all),
-                label: const Text('Select all'),
-              ),
-              TextButton.icon(
-                onPressed: _selectedMedia.isNotEmpty ? _clearAllSelections : null,
-                icon: const Icon(Icons.clear_all),
-                label: const Text('Clear'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 240,
+                    child: FilledButton.icon(
+                      onPressed: selectedCount > 0 && !_isBulkDownloading
+                          ? () => _downloadSelectedMedia(context)
+                          : null,
+                      icon: _isBulkDownloading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.download_for_offline),
+                      label: Text(
+                        selectedCount > 0
+                            ? 'Download selected ($selectedCount)'
+                            : 'Download selected',
+                      ),
+                    ),
+                  ),
+                  if (_isBulkDownloading)
+                    FilledButton.tonalIcon(
+                      onPressed:
+                          _bulkCancelRequested ? null : _requestStopBulkDownload,
+                      style: FilledButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                      icon: Icon(
+                        _bulkCancelRequested
+                            ? Icons.hourglass_top
+                            : Icons.stop_circle_outlined,
+                      ),
+                      label: Text(
+                        _bulkCancelRequested ? 'Stopping…' : 'Stop',
+                      ),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: filteredMedia.isEmpty || _isBulkDownloading
+                        ? null
+                        : () => _selectAllMedia(filteredMedia),
+                    icon: const Icon(Icons.select_all),
+                    label: const Text('Select all'),
+                  ),
+                  TextButton.icon(
+                    onPressed: _selectedMedia.isNotEmpty && !_isBulkDownloading
+                        ? _clearAllSelections
+                        : null,
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Clear selection'),
+                  ),
+                  TextButton.icon(
+                    onPressed: mediaHq.isEmpty || _isBulkDownloading
+                        ? null
+                        : () => _clearFoundMedia(context),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Clear media'),
+                  ),
+                ],
               ),
             ],
           ),
