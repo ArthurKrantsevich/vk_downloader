@@ -9,6 +9,9 @@ abstract class IVkAuthService {
   Future<void> logout();
   Future<bool> isAuthenticated();
   Future<VkAuthSession?> currentSession();
+  VkOAuthConfig get config;
+  Future<VkOAuthConfig> loadSavedConfig();
+  Future<void> updateConfig(VkOAuthConfig config);
 }
 
 class VkAuthService implements IVkAuthService {
@@ -23,11 +26,17 @@ class VkAuthService implements IVkAuthService {
   static const String _boxName = 'vk_auth_box';
   static const String _sessionKey = 'session';
   static final VkAuthSessionAdapter _adapter = VkAuthSessionAdapter();
+  static const String _configBoxName = 'vk_oauth_config_box';
+  static const String _configClientIdKey = 'client_id';
+  static const String _configRedirectUriKey = 'redirect_uri';
+  static const String _configScopesKey = 'scopes';
+  static const String _configApiVersionKey = 'api_version';
 
-  final VkOAuthConfig _config;
+  VkOAuthConfig _config;
   final HiveInterface _hive;
   final DateTime Function() _clock;
   Box<VkAuthSession>? _box;
+  Box<dynamic>? _configBox;
 
   Future<Box<VkAuthSession>> _ensureBox() async {
     if (_box != null) {
@@ -43,6 +52,21 @@ class VkAuthService implements IVkAuthService {
     }
     return _box!;
   }
+
+  Future<Box<dynamic>> _ensureConfigBox() async {
+    if (_configBox != null) {
+      return _configBox!;
+    }
+    if (!_hive.isBoxOpen(_configBoxName)) {
+      _configBox = await _hive.openBox<dynamic>(_configBoxName);
+    } else {
+      _configBox = _hive.box<dynamic>(_configBoxName);
+    }
+    return _configBox!;
+  }
+
+  @override
+  VkOAuthConfig get config => _config;
 
   @override
   Future<VkAuthSession?> authenticate() async {
@@ -96,6 +120,47 @@ class VkAuthService implements IVkAuthService {
   Future<void> logout() async {
     final box = await _ensureBox();
     await box.delete(_sessionKey);
+  }
+
+  @override
+  Future<VkOAuthConfig> loadSavedConfig() async {
+    final box = await _ensureConfigBox();
+    final storedClientId = box.get(_configClientIdKey) as String?;
+    final storedRedirectUri = box.get(_configRedirectUriKey) as String?;
+    final storedScopesRaw = box.get(_configScopesKey);
+    final storedApiVersion = box.get(_configApiVersionKey) as String?;
+
+    if (storedClientId == null || storedClientId.isEmpty) {
+      return _config;
+    }
+
+    final scopes = storedScopesRaw is List
+        ? storedScopesRaw.whereType<String>().toList()
+        : _config.scopes;
+
+    final loadedConfig = VkOAuthConfig(
+      clientId: storedClientId,
+      redirectUri: storedRedirectUri?.isNotEmpty == true
+          ? storedRedirectUri!
+          : _config.redirectUri,
+      scopes: scopes.isNotEmpty ? scopes : _config.scopes,
+      apiVersion: storedApiVersion?.isNotEmpty == true
+          ? storedApiVersion!
+          : _config.apiVersion,
+    );
+
+    _config = loadedConfig;
+    return _config;
+  }
+
+  @override
+  Future<void> updateConfig(VkOAuthConfig config) async {
+    final box = await _ensureConfigBox();
+    await box.put(_configClientIdKey, config.clientId);
+    await box.put(_configRedirectUriKey, config.redirectUri);
+    await box.put(_configScopesKey, config.scopes);
+    await box.put(_configApiVersionKey, config.apiVersion);
+    _config = config;
   }
 
   Map<String, String> _parseFragment(String fragment) {
