@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 final _secureStorage = const FlutterSecureStorage();
 const _kStoredCookiesKey = 'vk_webview_cookies';
@@ -66,7 +65,10 @@ class _HomeScreenState extends State<HomeScreen> {
     isInspectable: true,
   );
 
-  SharedPreferences? _prefs;
+  // --- заменяем SharedPreferences на файлик JSON ---
+  File? _prefsFile;
+  Map<String, dynamic> _prefsCache = {};
+
   bool _isSidePanelVisible = true;
   String _mediaSearch = '';
   bool _isBulkDownloading = false;
@@ -161,14 +163,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // -------------------- Prefs (JSON в Documents) --------------------
+
   Future<void> _initPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedVisited = prefs.getStringList(_kPrefsVisitedKey);
-    final storedSearch = prefs.getString(_kPrefsSearchKey) ?? '';
+    final docs = await getApplicationDocumentsDirectory();
+    _prefsFile = File('${docs.path}${Platform.pathSeparator}vk_downloader_prefs.json');
+    if (await _prefsFile!.exists()) {
+      try {
+        final txt = await _prefsFile!.readAsString();
+        _prefsCache = (jsonDecode(txt) as Map).map((k, v) => MapEntry('$k', v));
+      } catch (_) {
+        _prefsCache = {};
+      }
+    }
+    final storedVisited = (_prefsCache[_kPrefsVisitedKey] as List?)?.cast<String>() ?? const <String>[];
+    final storedSearch = (_prefsCache[_kPrefsSearchKey] as String?) ?? '';
     setState(() {
-      _prefs = prefs;
-      _isSidePanelVisible = prefs.getBool(_kPrefsSidePanelKey) ?? true;
-      if (storedVisited != null && storedVisited.isNotEmpty) {
+      _isSidePanelVisible = (_prefsCache[_kPrefsSidePanelKey] as bool?) ?? true;
+      if (storedVisited.isNotEmpty) {
         _visitedUrls
           ..clear()
           ..addAll(storedVisited);
@@ -181,21 +193,32 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _savePrefs() async {
+    try {
+      if (_prefsFile == null) return;
+      _prefsCache[_kPrefsVisitedKey] = _visitedUrls.take(100).toList(growable: false);
+      _prefsCache[_kPrefsSidePanelKey] = _isSidePanelVisible;
+      _prefsCache[_kPrefsSearchKey] = _mediaSearch;
+      await _prefsFile!.writeAsString(jsonEncode(_prefsCache), flush: true);
+    } catch (_) {
+      // игнорируем ошибки записи
+    }
+  }
+
   Future<void> _persistVisitedUrls() async {
-    final limited = _visitedUrls.take(100).toList(growable: false);
-    await _prefs?.setStringList(_kPrefsVisitedKey, limited);
+    await _savePrefs();
   }
 
   void _setSidePanelVisible(bool value) {
     if (_isSidePanelVisible == value) return;
     setState(() => _isSidePanelVisible = value);
-    _prefs?.setBool(_kPrefsSidePanelKey, value);
+    unawaited(_savePrefs());
   }
 
   void _updateMediaSearch(String value) {
     if (_mediaSearch == value) return;
     setState(() => _mediaSearch = value);
-    _prefs?.setString(_kPrefsSearchKey, value);
+    unawaited(_savePrefs());
   }
 
   void _toggleMediaSelection(String url, bool value) {
@@ -319,7 +342,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       final qpAll = Map<String, List<String>>.from(uri.queryParametersAll);
       // вытащим as= "32x21,48x32,...,1280x853"
-      final asList = (qpAll['as']?.isNotEmpty ?? false) ? qpAll['as']!.first.split(',') : <String>[];
+      final asList =
+      (qpAll['as']?.isNotEmpty ?? false) ? qpAll['as']!.first.split(',') : <String>[];
       int maxW = 0;
       for (final s in asList) {
         final parts = s.split('x');
@@ -605,11 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // фильтруем валидные ссылки, нормализуем и убираем дубликаты
-    final mediaHq = _mediaUrlsRaw
-        .map(_hq)
-        .where(_isRelevantMediaUrl)
-        .toSet()
-        .toList(growable: false);
+    final mediaHq = _mediaUrlsRaw.map(_hq).where(_isRelevantMediaUrl).toSet().toList(growable: false);
     final searchLower = _mediaSearch.toLowerCase();
     final filteredMedia = mediaHq
         .where((url) => searchLower.isEmpty || url.toLowerCase().contains(searchLower))
@@ -826,12 +846,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         suffixIcon: _mediaSearch.isEmpty
                             ? null
                             : IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _mediaSearchCtrl.clear();
-                                  _updateMediaSearch('');
-                                },
-                              ),
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _mediaSearchCtrl.clear();
+                            _updateMediaSearch('');
+                          },
+                        ),
                         hintText: 'Search media URLs',
                         border: const OutlineInputBorder(),
                         isDense: true,
@@ -846,10 +866,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           : null,
                       icon: _isBulkDownloading
                           ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                           : const Icon(Icons.download_for_offline),
                       label: Text(
                         selectedCount > 0
@@ -861,93 +881,104 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: filteredMedia.isEmpty
                         ? Center(
-                            child: Text(
-                              mediaHq.isEmpty
-                                  ? 'Нет медиа — нажмите "Scan media"'
-                                  : 'Нет совпадений',
-                            ),
-                          )
+                      child: Text(
+                        mediaHq.isEmpty
+                            ? 'Нет медиа — нажмите "Scan media"'
+                            : 'Нет совпадений',
+                      ),
+                    )
                         : ListView.separated(
-                            itemCount: filteredMedia.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
-                            itemBuilder: (_, i) {
-                              final url = filteredMedia[i];
-                              final isM3U8 = url.toLowerCase().endsWith('.m3u8');
-                              final isVidByExt =
-                                  RegExp(r'\.(mp4|mov|m4v|webm)(\?|$)', caseSensitive: false).hasMatch(url);
-                              final isMaybeVideo = isM3U8 || isVidByExt;
-                              final isChecked = _selectedMedia.contains(url);
+                      itemCount: filteredMedia.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final url = filteredMedia[i];
+                        final isM3U8 = url.toLowerCase().endsWith('.m3u8');
+                        final isVidByExt =
+                        RegExp(r'\.(mp4|mov|m4v|webm)(\?|$)', caseSensitive: false)
+                            .hasMatch(url);
+                        final isMaybeVideo = isM3U8 || isVidByExt;
+                        final isChecked = _selectedMedia.contains(url);
 
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                leading: SizedBox(
-                                  width: 64,
-                                  height: 64,
-                                  child: isMaybeVideo
-                                      ? const Icon(Icons.videocam, size: 32)
-                                      : FutureBuilder<Uint8List?>(
-                                          future: _loadThumb(url),
-                                          builder: (context, snap) {
-                                            if (snap.connectionState == ConnectionState.waiting) {
-                                              return const Center(
-                                                child: SizedBox(
-                                                  width: 18,
-                                                  height: 18,
-                                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                                ),
-                                              );
-                                            }
-                                            if (snap.data == null) {
-                                              return const Icon(Icons.image_not_supported);
-                                            }
-                                            return ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
-                                              child: Image.memory(snap.data!, fit: BoxFit.cover),
-                                            );
-                                          },
-                                        ),
-                                ),
-                                title: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                subtitle:
-                                    isM3U8 ? const Text('HLS stream (.m3u8) — нужен загрузчик HLS') : null,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Checkbox(
-                                      value: isChecked,
-                                      onChanged: isM3U8
-                                          ? null
-                                          : (value) => _toggleMediaSelection(url, value ?? false),
+                        return ListTile(
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          leading: SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: isMaybeVideo
+                                ? const Icon(Icons.videocam, size: 32)
+                                : FutureBuilder<Uint8List?>(
+                              future: _loadThumb(url),
+                              builder: (context, snap) {
+                                if (snap.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.download),
-                                      onPressed: isM3U8
-                                          ? null
-                                          : () async {
-                                              final path = await _downloadToDisk(url);
-                                              if (!mounted) return;
-                                              if (path != null) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(SnackBar(content: Text('Saved: $path')));
-                                              } else {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(const SnackBar(content: Text('Save failed')));
-                                              }
-                                            },
-                                    ),
-                                  ],
-                                ),
-                                onTap: () => _openUrl(url),
-                                onLongPress: isM3U8 ? null : () => _toggleMediaSelection(url, !isChecked),
-                              );
-                            },
+                                  );
+                                }
+                                if (snap.data == null) {
+                                  return const Icon(Icons.image_not_supported);
+                                }
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(snap.data!, fit: BoxFit.cover),
+                                );
+                              },
+                            ),
                           ),
+                          title: Text(url,
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          subtitle: isM3U8
+                              ? const Text('HLS stream (.m3u8) — нужен загрузчик HLS')
+                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Checkbox(
+                                value: isChecked,
+                                onChanged: isM3U8
+                                    ? null
+                                    : (value) =>
+                                    _toggleMediaSelection(url, value ?? false),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.download),
+                                onPressed: isM3U8
+                                    ? null
+                                    : () async {
+                                  final path = await _downloadToDisk(url);
+                                  if (!mounted) return;
+                                  if (path != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Saved: $path')),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Save failed')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () => _openUrl(url),
+                          onLongPress:
+                          isM3U8 ? null : () => _toggleMediaSelection(url, !isChecked),
+                        );
+                      },
+                    ),
                   ),
                   const Divider(height: 1),
                   Container(
                     padding: const EdgeInsets.all(12),
                     color: Theme.of(context).colorScheme.surfaceVariant,
-                    child: Text('Visited Links', style: Theme.of(context).textTheme.titleMedium),
+                    child:
+                    Text('Visited Links', style: Theme.of(context).textTheme.titleMedium),
                   ),
                   SizedBox(
                     height: 140,
@@ -976,8 +1007,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       reverse: true,
                       itemCount: _events.length,
                       itemBuilder: (_, i) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        child: Text(_events[i], style: const TextStyle(fontSize: 12, height: 1.2)),
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Text(_events[i],
+                            style: const TextStyle(fontSize: 12, height: 1.2)),
                       ),
                     ),
                   ),
