@@ -3,17 +3,24 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app/app_router.dart';
+import '../services/vk_auth_service.dart';
 
 abstract class SplashNavigator {
-  void openHome(BuildContext context);
+  void openDownload(BuildContext context);
+  void openLogin(BuildContext context);
 }
 
 class DefaultSplashNavigator implements SplashNavigator {
   const DefaultSplashNavigator();
 
   @override
-  void openHome(BuildContext context) {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+  void openDownload(BuildContext context) {
+    Navigator.of(context).pushReplacementNamed(AppRoutes.download);
+  }
+
+  @override
+  void openLogin(BuildContext context) {
+    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
   }
 }
 
@@ -22,10 +29,12 @@ class SplashScreen extends StatefulWidget {
     super.key,
     SplashNavigator? navigator,
     this.displayDuration = const Duration(seconds: 2),
+    required this.authService,
   }) : navigator = navigator ?? const DefaultSplashNavigator();
 
   final SplashNavigator navigator;
   final Duration displayDuration;
+  final IVkAuthService authService;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -49,7 +58,9 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeInOut,
     );
 
-    _timer = Timer(widget.displayDuration, _handleNavigation);
+    _timer = Timer(widget.displayDuration, () {
+      _handleNavigation();
+    });
   }
 
   @override
@@ -59,9 +70,15 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  void _handleNavigation() {
+  Future<void> _handleNavigation() async {
     if (!mounted) return;
-    widget.navigator.openHome(context);
+    final isLoggedIn = await widget.authService.isAuthenticated();
+    if (!mounted) return;
+    if (isLoggedIn) {
+      widget.navigator.openDownload(context);
+    } else {
+      widget.navigator.openLogin(context);
+    }
   }
 
   @override

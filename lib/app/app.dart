@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../services/vk_auth_service.dart';
 import 'app_router.dart';
 
 class VkDownloaderApp extends StatelessWidget {
-  VkDownloaderApp({super.key});
+  VkDownloaderApp({
+    super.key,
+    required IVkAuthService authService,
+  }) : _router = AppRouter(authService: authService);
 
-  final AppRouter _router = const AppRouter();
+  final AppRouter _router;
 
   @override
   Widget build(BuildContext context) {

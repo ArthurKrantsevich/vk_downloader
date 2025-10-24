@@ -5,6 +5,7 @@ import '../screens/history_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/splash_screen.dart';
+import '../services/vk_auth_service.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -15,14 +16,16 @@ class AppRoutes {
 }
 
 class AppRouter {
-  const AppRouter();
+  const AppRouter({required this.authService});
+
+  final IVkAuthService authService;
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppRoutes.splash:
         return _buildRoute(
           settings,
-          SplashScreen(),
+          SplashScreen(authService: authService),
         );
       case AppRoutes.home:
         return _buildRoute(
@@ -32,12 +35,12 @@ class AppRouter {
       case AppRoutes.login:
         return _buildRoute(
           settings,
-          const LoginScreen(),
+          LoginScreen(authService: authService),
         );
       case AppRoutes.download:
         return _buildRoute(
           settings,
-          const DownloadScreen(),
+          DownloadScreen(authService: authService),
         );
       case AppRoutes.history:
         return _buildRoute(
