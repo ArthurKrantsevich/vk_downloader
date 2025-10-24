@@ -55,6 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<String> _mediaUrlsRaw = <String>[];   // как пришло из страницы
   final Map<String, Uint8List?> _thumbCache = {};  // кэш превью
   final Set<String> _selectedMedia = <String>{};
+  final ScrollController _mediaScrollController = ScrollController();
+  final ScrollController _visitedScrollController = ScrollController();
+  final ScrollController _eventsScrollController = ScrollController();
   Map<String, String> _userInfo = {};
 
   InAppWebViewController? _controller;
@@ -79,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
               defaultTargetPlatform == TargetPlatform.linux);
 
   void _log(String s) {
-    setState(() => _events.insert(0, s));
+    setState(() => _events.add(s));
+    _scheduleScrollToBottom(_eventsScrollController);
     // ignore: avoid_print
     print(s);
   }
@@ -96,6 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _urlCtrl.dispose();
     _mediaSearchCtrl.dispose();
+    _mediaScrollController.dispose();
+    _visitedScrollController.dispose();
+    _eventsScrollController.dispose();
     super.dispose();
   }
 
@@ -209,6 +216,17 @@ class _HomeScreenState extends State<HomeScreen> {
     await _savePrefs();
   }
 
+  void _scheduleScrollToBottom(ScrollController controller) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !controller.hasClients) return;
+      controller.animateTo(
+        controller.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
   void _setSidePanelVisible(bool value) {
     if (_isSidePanelVisible == value) return;
     setState(() => _isSidePanelVisible = value);
@@ -229,6 +247,20 @@ class _HomeScreenState extends State<HomeScreen> {
         _selectedMedia.remove(url);
       }
     });
+  }
+
+  void _selectAllMedia(Iterable<String> urls) {
+    setState(() {
+      for (final url in urls) {
+        if (_isStreamUrl(url)) continue;
+        _selectedMedia.add(url);
+      }
+    });
+  }
+
+  void _clearAllSelections() {
+    if (_selectedMedia.isEmpty) return;
+    setState(() => _selectedMedia.clear());
   }
 
   Future<void> _downloadSelectedMedia(BuildContext context) async {
@@ -423,6 +455,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return hasExt;
   }
 
+  bool _isStreamUrl(String url) => url.toLowerCase().endsWith('.m3u8');
+
+  bool _isVideoFile(String url) {
+    return RegExp(r'\.(mp4|mov|m4v|webm)(\?|$)', caseSensitive: false).hasMatch(url);
+  }
+
   Future<void> _extractMediaFromPage() async {
     if (_controller == null) return;
     try {
@@ -605,11 +643,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (url.isEmpty) return;
     setState(() {
       _visitedUrls.remove(url);
-      _visitedUrls.insert(0, url);
+      _visitedUrls.add(url);
       if (_visitedUrls.length > 100) {
-        _visitedUrls.removeRange(100, _visitedUrls.length);
+        _visitedUrls.removeRange(0, _visitedUrls.length - 100);
       }
     });
+    _scheduleScrollToBottom(_visitedScrollController);
     unawaited(_persistVisitedUrls());
   }
 
@@ -617,6 +656,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final url = _isHttpUrl(url0) ? url0 : 'https://$url0';
     _urlCtrl.text = url;
     await _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+  }
+
+  Future<void> _goBack(BuildContext context) async {
+    final canGoBack = await _controller?.canGoBack() ?? false;
+    if (canGoBack) {
+      await _controller?.goBack();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No previous page')),
+      );
+    }
   }
 
   @override
@@ -639,8 +689,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final userId = _userInfo['id'];
     final userAvatar = _userInfo['avatar'];
 
+
+
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => _goBack(context),
+        ),
         title: const Text('VK Downloader'),
         actions: [
           IconButton(
@@ -654,8 +711,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => _controller?.reload(),
           ),
           IconButton(
-            tooltip: _isSidePanelVisible ? 'Hide sidebar' : 'Show sidebar',
-            icon: Icon(_isSidePanelVisible ? Icons.view_sidebar : Icons.view_sidebar_outlined),
+            tooltip: _isSidePanelVisible ? 'Collapse media panel' : 'Expand media panel',
+            icon: Icon(_isSidePanelVisible ? Icons.close_fullscreen : Icons.open_in_full),
             onPressed: () => _setSidePanelVisible(!_isSidePanelVisible),
           ),
         ],
@@ -666,30 +723,57 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _urlCtrl,
-                          onSubmitted: _openUrl,
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.language),
-                            hintText: 'Введите URL',
-                            border: OutlineInputBorder(),
-                            isDense: true,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _urlCtrl,
+                              onSubmitted: _openUrl,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.language),
+                                hintText: 'Введите URL',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: () => _openUrl(_urlCtrl.text),
-                        child: const Text('Go'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.tonal(
-                        onPressed: _extractMediaFromPage,
-                        child: const Text('Scan media'),
+                          const SizedBox(width: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              Tooltip(
+                                message: 'Navigate back in the web view',
+                                child: FilledButton.tonalIcon(
+                                  onPressed: () => _goBack(context),
+                                  icon: const Icon(Icons.arrow_back),
+                                  label: const Text('Back'),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Open the typed address',
+                                child: FilledButton.icon(
+                                  onPressed: () => _openUrl(_urlCtrl.text),
+                                  icon: const Icon(Icons.play_arrow),
+                                  label: const Text('Go'),
+                                ),
+                              ),
+                              Tooltip(
+                                message: 'Extract media links from the current page',
+                                child: FilledButton.tonalIcon(
+                                  onPressed: _extractMediaFromPage,
+                                  icon: const Icon(Icons.photo_library),
+                                  label: const Text('Scan media'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -781,244 +865,351 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          if (_isSidePanelVisible) ...[
-            const VerticalDivider(width: 1),
-            SizedBox(
-              width: 430,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_userInfo.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      color: Theme.of(context).colorScheme.surfaceVariant,
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundImage: (userAvatar != null && userAvatar.isNotEmpty)
-                                ? NetworkImage(userAvatar)
-                                : null,
-                            child: (userAvatar == null || userAvatar.isEmpty)
-                                ? const Icon(Icons.person)
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(userName ?? 'VK user',
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis),
-                                if (userId != null)
-                                  Text('ID: $userId',
-                                      style: Theme.of(context).textTheme.bodySmall),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Theme.of(context).colorScheme.surfaceVariant,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text('Found media (HQ)',
-                              style: Theme.of(context).textTheme.titleMedium),
-                        ),
-                        Text('${filteredMedia.length}',
-                            style: Theme.of(context).textTheme.labelLarge),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: TextField(
-                      controller: _mediaSearchCtrl,
-                      onChanged: _updateMediaSearch,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _mediaSearch.isEmpty
-                            ? null
-                            : IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _mediaSearchCtrl.clear();
-                            _updateMediaSearch('');
-                          },
-                        ),
-                        hintText: 'Search media URLs',
-                        border: const OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                    child: FilledButton.icon(
-                      onPressed: selectedCount > 0 && !_isBulkDownloading
-                          ? () => _downloadSelectedMedia(context)
-                          : null,
-                      icon: _isBulkDownloading
-                          ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                          : const Icon(Icons.download_for_offline),
-                      label: Text(
-                        selectedCount > 0
-                            ? 'Download selected ($selectedCount)'
-                            : 'Download selected',
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: filteredMedia.isEmpty
-                        ? Center(
-                      child: Text(
-                        mediaHq.isEmpty
-                            ? 'Нет медиа — нажмите "Scan media"'
-                            : 'Нет совпадений',
-                      ),
-                    )
-                        : ListView.separated(
-                      itemCount: filteredMedia.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final url = filteredMedia[i];
-                        final isM3U8 = url.toLowerCase().endsWith('.m3u8');
-                        final isVidByExt =
-                        RegExp(r'\.(mp4|mov|m4v|webm)(\?|$)', caseSensitive: false)
-                            .hasMatch(url);
-                        final isMaybeVideo = isM3U8 || isVidByExt;
-                        final isChecked = _selectedMedia.contains(url);
+          const VerticalDivider(width: 1),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeInOutCubic,
+            width: _isSidePanelVisible ? 420 : 64,
+            child: _isSidePanelVisible
+                ? _buildExpandedSidebar(
+                    context,
+                    filteredMedia,
+                    mediaHq,
+                    selectedCount,
+                    userName,
+                    userId,
+                    userAvatar,
+                  )
+                : _buildCollapsedSidebar(context),
+          ),
+        ],
+      ),
 
-                        return ListTile(
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          leading: SizedBox(
-                            width: 64,
-                            height: 64,
-                            child: isMaybeVideo
-                                ? const Icon(Icons.videocam, size: 32)
-                                : FutureBuilder<Uint8List?>(
-                              future: _loadThumb(url),
-                              builder: (context, snap) {
-                                if (snap.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    ),
-                                  );
-                                }
-                                if (snap.data == null) {
-                                  return const Icon(Icons.image_not_supported);
-                                }
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.memory(snap.data!, fit: BoxFit.cover),
-                                );
-                              },
-                            ),
-                          ),
-                          title: Text(url,
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
-                          subtitle: isM3U8
-                              ? const Text('HLS stream (.m3u8) — нужен загрузчик HLS')
-                              : null,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Checkbox(
+    );
+
+  }
+
+  Widget _buildExpandedSidebar(
+    BuildContext context,
+    List<String> filteredMedia,
+    List<String> mediaHq,
+    int selectedCount,
+    String? userName,
+    String? userId,
+    String? userAvatar,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_userInfo.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: theme.colorScheme.surfaceVariant,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundImage: (userAvatar != null && userAvatar.isNotEmpty)
+                      ? NetworkImage(userAvatar)
+                      : null,
+                  child: (userAvatar == null || userAvatar.isEmpty)
+                      ? const Icon(Icons.person)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        userName ?? 'VK user',
+                        style: theme.textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (userId != null)
+                        Text('ID: $userId', style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: theme.colorScheme.surfaceVariant,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Found media',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              Chip(label: Text('${filteredMedia.length}')),
+              IconButton(
+                tooltip: 'Collapse media panel',
+                icon: const Icon(Icons.keyboard_double_arrow_right),
+                onPressed: () => _setSidePanelVisible(false),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: TextField(
+            controller: _mediaSearchCtrl,
+            onChanged: _updateMediaSearch,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _mediaSearch.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _mediaSearchCtrl.clear();
+                        _updateMediaSearch('');
+                      },
+                    ),
+              hintText: 'Search media URLs',
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 240,
+                child: FilledButton.icon(
+                  onPressed: selectedCount > 0 && !_isBulkDownloading
+                      ? () => _downloadSelectedMedia(context)
+                      : null,
+                  icon: _isBulkDownloading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_for_offline),
+                  label: Text(
+                    selectedCount > 0
+                        ? 'Download selected ($selectedCount)'
+                        : 'Download selected',
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: filteredMedia.isEmpty
+                    ? null
+                    : () => _selectAllMedia(filteredMedia),
+                icon: const Icon(Icons.select_all),
+                label: const Text('Select all'),
+              ),
+              TextButton.icon(
+                onPressed: _selectedMedia.isNotEmpty ? _clearAllSelections : null,
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: filteredMedia.isEmpty
+              ? Center(
+                  child: Text(
+                    mediaHq.isEmpty
+                        ? 'No media yet — press “Scan media”'
+                        : 'No media match your filter',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : Scrollbar(
+                  controller: _mediaScrollController,
+                  thumbVisibility: filteredMedia.length > 4,
+                  child: ListView.separated(
+                    controller: _mediaScrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: filteredMedia.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final url = filteredMedia[i];
+                      final isStream = _isStreamUrl(url);
+                      final isVideo = _isVideoFile(url);
+                      final isChecked = _selectedMedia.contains(url);
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        leading: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: isStream || isVideo
+                              ? Icon(isStream ? Icons.live_tv : Icons.videocam, size: 32)
+                              : FutureBuilder<Uint8List?>(
+                                  future: _loadThumb(url),
+                                  builder: (context, snap) {
+                                    if (snap.connectionState == ConnectionState.waiting) {
+                                      return const Center(
+                                        child: SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      );
+                                    }
+                                    if (snap.data == null) {
+                                      return const Icon(Icons.image_not_supported);
+                                    }
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.memory(snap.data!, fit: BoxFit.cover),
+                                    );
+                                  },
+                                ),
+                        ),
+                        title: Text(
+                          url,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: isStream
+                            ? const Text('HLS stream (.m3u8) — use an HLS downloader')
+                            : null,
+                        trailing: Wrap(
+                          spacing: 4,
+                          children: [
+                            Tooltip(
+                              message: isStream
+                                  ? 'Streams cannot be selected'
+                                  : (isChecked ? 'Remove from selection' : 'Add to selection'),
+                              child: Checkbox(
                                 value: isChecked,
-                                onChanged: isM3U8
+                                onChanged: isStream
                                     ? null
-                                    : (value) =>
-                                    _toggleMediaSelection(url, value ?? false),
+                                    : (value) => _toggleMediaSelection(url, value ?? false),
                               ),
-                              IconButton(
+                            ),
+                            Tooltip(
+                              message: 'Download file',
+                              child: IconButton(
                                 icon: const Icon(Icons.download),
-                                onPressed: isM3U8
+                                onPressed: isStream
                                     ? null
                                     : () async {
-                                  final path = await _downloadToDisk(url);
-                                  if (!mounted) return;
-                                  if (path != null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Saved: $path')),
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Save failed')),
-                                    );
-                                  }
-                                },
+                                        final path = await _downloadToDisk(url);
+                                        if (!mounted) return;
+                                        if (path != null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Saved: $path')),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Save failed')),
+                                          );
+                                        }
+                                      },
                               ),
-                            ],
-                          ),
-                          onTap: () => _openUrl(url),
-                          onLongPress:
-                          isM3U8 ? null : () => _toggleMediaSelection(url, !isChecked),
-                        );
-                      },
-                    ),
+                            ),
+                          ],
+                        ),
+                        onTap: () => _openUrl(url),
+                        onLongPress: isStream ? null : () => _toggleMediaSelection(url, !isChecked),
+                      );
+                    },
                   ),
-                  const Divider(height: 1),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Theme.of(context).colorScheme.surfaceVariant,
-                    child:
-                    Text('Visited Links', style: Theme.of(context).textTheme.titleMedium),
+                ),
+        ),
+        const Divider(height: 1),
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: theme.colorScheme.surfaceVariant,
+          child: Text('Visited pages', style: theme.textTheme.titleMedium),
+        ),
+        SizedBox(
+          height: 110,
+          child: Scrollbar(
+            controller: _visitedScrollController,
+            thumbVisibility: _visitedUrls.length > 4,
+            child: ListView.builder(
+              controller: _visitedScrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              itemCount: _visitedUrls.length,
+              itemBuilder: (_, i) {
+                final url = _visitedUrls[i];
+                return ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: const Icon(Icons.history, size: 18),
+                  title: Text(
+                    url,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(
-                    height: 140,
-                    child: ListView.separated(
-                      itemCount: _visitedUrls.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final url = _visitedUrls[i];
-                        return ListTile(
-                          dense: true,
-                          title: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
-                          onTap: () => _openUrl(url),
-                        );
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Theme.of(context).colorScheme.surfaceVariant,
-                    child: Text('Events', style: Theme.of(context).textTheme.titleMedium),
-                  ),
-                  SizedBox(
-                    height: 140,
-                    child: ListView.builder(
-                      reverse: true,
-                      itemCount: _events.length,
-                      itemBuilder: (_, i) => Padding(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        child: Text(_events[i],
-                            style: const TextStyle(fontSize: 12, height: 1.2)),
-                      ),
-                    ),
-                  ),
-                ],
+                  onTap: () => _openUrl(url),
+                );
+              },
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: theme.colorScheme.surfaceVariant,
+          child: Text('Events log', style: theme.textTheme.titleMedium),
+        ),
+        SizedBox(
+          height: 110,
+          child: Scrollbar(
+            controller: _eventsScrollController,
+            thumbVisibility: _events.length > 4,
+            child: ListView.builder(
+              controller: _eventsScrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              itemCount: _events.length,
+              itemBuilder: (_, i) => Text(
+                _events[i],
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.2),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCollapsedSidebar(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.colorScheme.surfaceVariant,
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Expand media panel',
+              icon: const Icon(Icons.keyboard_double_arrow_left),
+              onPressed: () => _setSidePanelVisible(true),
+            ),
+            const SizedBox(height: 12),
+            RotatedBox(
+              quarterTurns: 3,
+              child: Text(
+                'MEDIA PANEL',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
