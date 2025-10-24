@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 void main() {
   runApp(const MyApp());
@@ -83,30 +83,12 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _initialUrl = 'https://vk.com';
 
   final List<String> _visitedUrls = <String>[_initialUrl];
-  late final WebViewController _controller;
+  InAppWebViewController? _controller;
 
   bool get _isDesktop =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.linux ||
           defaultTargetPlatform == TargetPlatform.windows);
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (NavigationRequest request) {
-            _trackUrl(request.url);
-            return NavigationDecision.navigate;
-          },
-          onPageStarted: _trackUrl,
-        ),
-      )
-      ..loadRequest(Uri.parse(_initialUrl));
-  }
 
   void _trackUrl(String url) {
     if (url.isEmpty) return;
@@ -117,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openUrl(String url) {
-    _controller.loadRequest(Uri.parse(url));
+    _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
   }
 
   @override
@@ -136,7 +118,32 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Row(
         children: [
           Expanded(
-            child: WebViewWidget(controller: _controller),
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(url: WebUri(_initialUrl)),
+              initialSettings: InAppWebViewSettings(
+                transparentBackground: true,
+                javaScriptEnabled: true,
+              ),
+              onWebViewCreated: (InAppWebViewController controller) {
+                _controller = controller;
+              },
+              shouldOverrideUrlLoading: (
+                InAppWebViewController controller,
+                NavigationAction navigationAction,
+              ) {
+                final url = navigationAction.request.url?.toString();
+                if (url != null) {
+                  _trackUrl(url);
+                }
+                return NavigationActionPolicy.ALLOW;
+              },
+              onLoadStart: (InAppWebViewController controller, WebUri? url) {
+                final resolvedUrl = url?.toString();
+                if (resolvedUrl != null) {
+                  _trackUrl(resolvedUrl);
+                }
+              },
+            ),
           ),
           const VerticalDivider(width: 1),
           SizedBox(
