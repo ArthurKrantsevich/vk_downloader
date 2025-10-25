@@ -160,7 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     if (!_isDesktop) {
       return Scaffold(
-        appBar: AppBar(title: const Text('VK Downloader')),
         body: const Center(child: Text('This application currently supports Windows and Linux.')),
       );
     }
@@ -192,106 +191,103 @@ class _HomeScreenState extends State<HomeScreen> {
         final selectedCount = state.selectedMedia.length;
 
         return Scaffold(
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          appBar: _FrostedAppBar(
-            leading: _CircleIconButton(
-              tooltip: 'Back',
-              icon: Icons.arrow_back,
-              onPressed: () async {
-                final canGoBack = await _controller.webViewController?.canGoBack() ?? false;
-                if (canGoBack) {
-                  await _controller.webViewController?.goBack();
-                } else if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No previous page')));
-                }
-              },
-            ),
-            title: const Text('VK Downloader', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.2)),
-            actions: [
-              _CircleIconButton(tooltip: 'DevTools', icon: Icons.bug_report, onPressed: () => _controller.webViewController?.openDevTools()),
-              _CircleIconButton(tooltip: 'Reload', icon: Icons.refresh, onPressed: () => _controller.webViewController?.reload()),
-              _CircleIconButton(
-                tooltip: state.isSidePanelVisible ? 'Collapse media panel' : 'Expand media panel',
-                icon: state.isSidePanelVisible ? Icons.close_fullscreen : Icons.open_in_full,
-                onPressed: () => _controller.setSidePanelVisible(!state.isSidePanelVisible),
-              ),
-            ],
-          ),
-          body: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    _TopToolbar(
-                      urlController: _urlController,
-                      onOpenUrl: _openUrl,
-                      onBack: () async {
-                        final canGoBack = await _controller.webViewController?.canGoBack() ?? false;
-                        if (canGoBack) {
-                          await _controller.webViewController?.goBack();
-                        } else if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No previous page')));
-                        }
-                      },
-                      onScan: _extractMediaFromPage,
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: _buildWebView(),
-                          ),
-                        ),
-                      ),
-                    ),
+          backgroundColor: const Color(0xFFF4F6FB),
+          body: SafeArea(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF9FAFF),
+                    Color(0xFFF4F5FB),
                   ],
                 ),
               ),
-              const VerticalDivider(width: 1),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeInOutCubic,
-                width: state.isSidePanelVisible ? 440 : 64,
-                child: state.isSidePanelVisible
-                    ? _ExpandedSidebar(
-                        state: state,
-                        filteredMedia: filteredMedia,
-                        totalMedia: totalMedia,
-                        selectedCount: selectedCount,
-                  mediaSearchController: _mediaSearchController,
-                  onDownloadSelected: () => _handleDownloadSelected(context),
-                  onStopDownloads: _controller.cancelBulkDownload,
-                  onSelectAll: () => _handleSelectAll(filteredMedia),
-                  onClearSelection: _controller.clearSelections,
-                  onClearMedia: () => _handleClearMedia(context),
-                  onSearchChanged: _handleMediaSearch,
-                  mediaScrollController: _mediaScrollController,
-                  loadThumbnail: _controller.thumbnailFor,
-                  openUrl: _openUrl,
-                  onToggleSelection: _controller.toggleSelection,
-                  onDownloadSingle: (url) => _downloadSingle(context, url),
-                  visitedScrollController: _visitedScrollController,
-                  eventsScrollController: _eventsScrollController,
-                  onCollapse: () => _controller.setSidePanelVisible(false),
-                  onClearInput: () => _handleMediaSearch(''),
-                )
-                    : _CollapsedSidebar(onExpand: () => _controller.setSidePanelVisible(true)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      child: Column(
+                        children: [
+                          _TopToolbar(
+                            state: state,
+                            urlController: _urlController,
+                            onOpenUrl: _openUrl,
+                            onBack: () async {
+                              final canGoBack = await _controller.webViewController?.canGoBack() ?? false;
+                              if (canGoBack) {
+                                await _controller.webViewController?.goBack();
+                              } else if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('No previous page')),
+                                );
+                              }
+                            },
+                            onScan: _extractMediaFromPage,
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  border: Border.all(color: Colors.black.withOpacity(0.04)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: _buildWebView(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    margin: const EdgeInsets.symmetric(vertical: 20),
+                    color: Colors.black.withOpacity(0.05),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOutCubic,
+                    width: state.isSidePanelVisible ? 420 : 62,
+                    child: state.isSidePanelVisible
+                        ? _ExpandedSidebar(
+                            state: state,
+                            filteredMedia: filteredMedia,
+                            totalMedia: totalMedia,
+                            selectedCount: selectedCount,
+                            mediaSearchController: _mediaSearchController,
+                            onDownloadSelected: () => _handleDownloadSelected(context),
+                            onStopDownloads: _controller.cancelBulkDownload,
+                            onSelectAll: () => _handleSelectAll(filteredMedia),
+                            onClearSelection: _controller.clearSelections,
+                            onClearMedia: () => _handleClearMedia(context),
+                            onSearchChanged: _handleMediaSearch,
+                            mediaScrollController: _mediaScrollController,
+                            loadThumbnail: _controller.thumbnailFor,
+                            openUrl: _openUrl,
+                            onToggleSelection: _controller.toggleSelection,
+                            onDownloadSingle: (url) => _downloadSingle(context, url),
+                            visitedScrollController: _visitedScrollController,
+                            eventsScrollController: _eventsScrollController,
+                            onCollapse: () => _controller.setSidePanelVisible(false),
+                            onClearInput: () => _handleMediaSearch(''),
+                          )
+                        : _CollapsedSidebar(onExpand: () => _controller.setSidePanelVisible(true)),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -497,27 +493,22 @@ class _CircleIconButton extends StatelessWidget {
       type: MaterialType.transparency,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withOpacity(isDisabled ? 0.55 : 0.85),
-                scheme.surfaceContainerHigh.withOpacity(isDisabled ? 0.65 : 0.9),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(isDisabled ? 0.35 : 0.65)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withOpacity(0.05)),
             boxShadow: [
               if (!isDisabled)
-                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 8)),
+                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 14, offset: const Offset(0, 6)),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Icon(icon, size: 18, color: isDisabled ? scheme.onSurface.withOpacity(0.4) : scheme.onSurface),
+          padding: const EdgeInsets.all(10),
+          child: Icon(
+            icon,
+            size: 18,
+            color: isDisabled ? scheme.onSurface.withOpacity(0.35) : scheme.onSurface,
           ),
         ),
       ),
@@ -532,12 +523,14 @@ class _CircleIconButton extends StatelessWidget {
 
 class _TopToolbar extends StatelessWidget {
   const _TopToolbar({
+    required this.state,
     required this.urlController,
     required this.onOpenUrl,
     required this.onBack,
     required this.onScan,
   });
 
+  final HomeState state;
   final TextEditingController urlController;
   final Future<void> Function(String url) onOpenUrl;
   final Future<void> Function() onBack;
@@ -546,78 +539,182 @@ class _TopToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // URL input pill
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withOpacity(0.82),
-                        scheme.surfaceContainerHigh.withOpacity(0.88),
-                      ],
+    final chips = <Widget>[
+      _StatusBadge(
+        icon: Icons.collections_outlined,
+        label: 'Collected',
+        value: '${state.mediaItems.length} file${state.mediaItems.length == 1 ? '' : 's'}',
+      ),
+      _StatusBadge(
+        icon: Icons.check_circle_outline,
+        label: 'Selected',
+        value: state.selectedMedia.isEmpty ? 'None yet' : '${state.selectedMedia.length} chosen',
+        highlight: state.selectedMedia.isNotEmpty,
+      ),
+    ];
+    if (state.mediaSearch.isNotEmpty) {
+      chips.add(
+        _StatusBadge(
+          icon: Icons.filter_alt_outlined,
+          label: 'Filter',
+          value: '"${state.mediaSearch}"',
+          highlight: true,
+        ),
+      );
+    }
+    if (state.isBulkDownloading) {
+      chips.add(
+        _StatusBadge(
+          icon: Icons.download_for_offline_outlined,
+          label: state.isBulkCancelRequested ? 'Stopping' : 'Downloading',
+          value: state.bulkDownloadTotal == 0
+              ? 'Preparing'
+              : '${state.bulkDownloadProcessed}/${state.bulkDownloadTotal}',
+          highlight: true,
+          accentColor: scheme.primary,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: Colors.black.withOpacity(0.05)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
                     ),
-                    border: Border.all(color: Colors.white.withOpacity(0.6)),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 8)),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 16),
-                      Icon(Icons.language, size: 20, color: scheme.onSurface.withOpacity(0.7)),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: urlController,
-                          onSubmitted: onOpenUrl,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter or paste VK link',
-                            border: InputBorder.none,
-                            isDense: true,
-                          ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(Icons.language, size: 18, color: scheme.onSurface.withOpacity(0.6)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: urlController,
+                        onSubmitted: onOpenUrl,
+                        decoration: const InputDecoration(
+                          hintText: 'Paste a VK link or type an address',
+                          border: InputBorder.none,
+                          isDense: true,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        child: _GlassPillButton(
-                          icon: Icons.check_circle,
-                          label: 'Go',
-                          emphasis: _GlassButtonEmphasis.primary,
-                          onPressed: () => onOpenUrl(urlController.text),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    _GlassPillButton(
+                      icon: Icons.check_circle,
+                      label: 'Go',
+                      emphasis: _GlassButtonEmphasis.primary,
+                      onPressed: () => onOpenUrl(urlController.text),
+                    ),
+                  ],
                 ),
               ),
             ),
+            const SizedBox(width: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _GlassPillButton(
+                  icon: Icons.arrow_back,
+                  label: 'Back',
+                  emphasis: _GlassButtonEmphasis.secondary,
+                  onPressed: onBack,
+                ),
+                _GlassPillButton(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Scan media',
+                  emphasis: _GlassButtonEmphasis.primary,
+                  onPressed: onScan,
+                ),
+              ],
+            ),
+          ],
+        ),
+        if (chips.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: chips,
           ),
-          const SizedBox(width: 12),
-          _GlassPillButton(
-            icon: Icons.arrow_back,
-            label: 'Back',
-            emphasis: _GlassButtonEmphasis.secondary,
-            onPressed: onBack,
-          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.highlight = false,
+    this.accentColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool highlight;
+  final Color? accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final Color brand = accentColor ?? scheme.primary;
+    final Color background = highlight ? brand.withOpacity(0.12) : Colors.white;
+    final Color border = highlight
+        ? brand.withOpacity(0.35)
+        : Colors.black.withOpacity(0.05);
+    final Color iconColor = highlight ? brand : scheme.onSurface.withOpacity(0.55);
+    final Color textColor = highlight ? brand : scheme.onSurface.withOpacity(0.7);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
           const SizedBox(width: 8),
-          _GlassPillButton(
-            icon: Icons.photo_library,
-            label: 'Scan media',
-            emphasis: _GlassButtonEmphasis.primary,
-            onPressed: onScan,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: textColor.withOpacity(0.9),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.1,
+                    ),
+              ),
+              Text(
+                value,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: textColor, fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ],
       ),
@@ -649,34 +746,27 @@ class _GlassPillButton extends StatelessWidget {
     final bool isPrimary = emphasis == _GlassButtonEmphasis.primary;
     final bool hasAccent = accentColor != null;
 
-    Color start;
-    Color end;
-    Color border;
-    Color textColor;
+    final Color accent = accentColor ?? scheme.primary;
+    late final Color background;
+    late final Color borderColor;
+    late final Color labelColor;
 
-    if (hasAccent) {
-      final base = accentColor!;
-      start = base.withOpacity(isDisabled ? 0.25 : 0.35);
-      end = base.withOpacity(isDisabled ? 0.35 : 0.55);
-      border = base.withOpacity(isDisabled ? 0.4 : 0.7);
-      final luminance = base.computeLuminance();
-      textColor = luminance > 0.6
-          ? Colors.black.withOpacity(isDisabled ? 0.6 : 0.9)
-          : Colors.white.withOpacity(isDisabled ? 0.7 : 0.95);
-    } else if (isPrimary) {
-      start = scheme.primary.withOpacity(isDisabled ? 0.2 : 0.32);
-      end = scheme.primary.withOpacity(isDisabled ? 0.28 : 0.48);
-      border = scheme.primary.withOpacity(isDisabled ? 0.35 : 0.55);
-      textColor = scheme.onPrimaryContainer;
+    if (isPrimary) {
+      background = accent;
+      borderColor = Colors.transparent;
+      labelColor = Colors.white;
+    } else if (hasAccent) {
+      background = accent.withOpacity(0.08);
+      borderColor = accent.withOpacity(0.35);
+      labelColor = accent;
     } else {
-      start = Colors.white.withOpacity(isDisabled ? 0.4 : 0.75);
-      end = scheme.surfaceContainerHigh.withOpacity(isDisabled ? 0.45 : 0.85);
-      border = Colors.white.withOpacity(isDisabled ? 0.4 : 0.7);
-      textColor = scheme.onSurface.withOpacity(isDisabled ? 0.5 : 0.9);
+      background = Colors.white;
+      borderColor = Colors.black.withOpacity(0.08);
+      labelColor = scheme.onSurface.withOpacity(0.75);
     }
 
     return Opacity(
-      opacity: isDisabled ? 0.6 : 1,
+      opacity: isDisabled ? 0.55 : 1,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
@@ -684,16 +774,12 @@ class _GlassPillButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           child: Ink(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [start, end],
-              ),
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: border, width: 1.2),
+              color: background,
+              border: Border.all(color: borderColor, width: isPrimary ? 0 : 1.2),
               boxShadow: [
-                if (!isDisabled)
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 10)),
+                if (!isDisabled && (isPrimary || hasAccent))
+                  BoxShadow(color: accent.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 10)),
               ],
             ),
             child: Padding(
@@ -701,11 +787,11 @@ class _GlassPillButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 18, color: textColor),
+                  Icon(icon, size: 18, color: labelColor),
                   const SizedBox(width: 8),
                   Text(
                     label,
-                    style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
+                    style: TextStyle(fontWeight: FontWeight.w600, color: labelColor),
                   ),
                 ],
               ),
@@ -787,107 +873,92 @@ class _ExpandedSidebarState extends State<_ExpandedSidebar> {
 
     return ClipRRect(
       borderRadius: const BorderRadius.only(topLeft: Radius.circular(28)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.white.withOpacity(0.84),
-                scheme.surfaceContainerHigh.withOpacity(0.92),
-              ],
-            ),
-            border: Border(left: BorderSide(color: Colors.white.withOpacity(0.55))),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (state.userInfo.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.85),
-                          scheme.surfaceContainerHigh.withOpacity(0.9),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(left: BorderSide(color: Colors.black.withOpacity(0.04))),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 28, offset: const Offset(-6, 0)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (state.userInfo.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 4),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F9FF),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.black.withOpacity(0.05)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundImage: (userAvatar != null && userAvatar.isNotEmpty)
+                            ? NetworkImage(userAvatar)
+                            : null,
+                        child: (userAvatar == null || userAvatar.isEmpty)
+                            ? Icon(Icons.person, color: scheme.onSurface.withOpacity(0.6))
+                            : null,
                       ),
-                      border: Border.all(color: Colors.white.withOpacity(0.55)),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundImage: (userAvatar != null && userAvatar.isNotEmpty)
-                                ? NetworkImage(userAvatar)
-                                : null,
-                            child: (userAvatar == null || userAvatar.isEmpty)
-                                ? Icon(Icons.person, color: scheme.onSurface.withOpacity(0.6))
-                                : null,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  userName ?? 'VK user',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (userId != null)
-                                  Text('ID: $userId', style: Theme.of(context).textTheme.bodySmall),
-                              ],
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              userName ?? 'VK user',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          _CircleIconButton(
-                            tooltip: 'Hide panel',
-                            icon: Icons.keyboard_double_arrow_right,
-                            onPressed: widget.onCollapse,
-                          ),
-                        ],
+                            if (userId != null)
+                              Text('ID: $userId', style: Theme.of(context).textTheme.bodySmall),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      _CircleIconButton(
+                        tooltip: 'Hide panel',
+                        icon: Icons.keyboard_double_arrow_right,
+                        onPressed: widget.onCollapse,
+                      ),
+                    ],
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                child: CupertinoSlidingSegmentedControl<int>(
-                  groupValue: _segment,
-                  backgroundColor: Colors.white.withOpacity(0.35),
-                  thumbColor: scheme.primary.withOpacity(0.28),
-                  onValueChanged: (value) {
-                    if (value != null) {
-                      setState(() => _segment = value);
-                    }
-                  },
-                  children: <int, Widget>{
-                    _mediaSegment: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                      child: Text('Media'),
-                    ),
-                    _historySegment: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                      child: Text('History'),
-                    ),
-                    _eventsSegment: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                      child: Text('Events'),
-                    ),
-                  },
-                ),
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+              child: CupertinoSlidingSegmentedControl<int>(
+                groupValue: _segment,
+                backgroundColor: const Color(0xFFF0F3FA),
+                thumbColor: scheme.primary.withOpacity(0.18),
+                onValueChanged: (value) {
+                  if (value != null) {
+                    setState(() => _segment = value);
+                  }
+                },
+                children: <int, Widget>{
+                  _mediaSegment: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                    child: const Text('Media'),
+                  ),
+                  _historySegment: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                    child: const Text('History'),
+                  ),
+                  _eventsSegment: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                    child: const Text('Events'),
+                  ),
+                },
+              ),
+            ),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 switchInCurve: Curves.easeOutCubic,
@@ -916,17 +987,16 @@ class _ExpandedSidebarState extends State<_ExpandedSidebar> {
                   }(),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                child: _GlassPillButton(
-                  icon: Icons.keyboard_double_arrow_right,
-                  label: 'Collapse panel',
-                  emphasis: _GlassButtonEmphasis.secondary,
-                  onPressed: widget.onCollapse,
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+              child: _GlassPillButton(
+                icon: Icons.keyboard_double_arrow_right,
+                label: 'Collapse panel',
+                emphasis: _GlassButtonEmphasis.secondary,
+                onPressed: widget.onCollapse,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -939,46 +1009,39 @@ class _ExpandedSidebarState extends State<_ExpandedSidebar> {
       children: [
         Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.82),
-                scheme.surfaceContainerHigh.withOpacity(0.88),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(color: Colors.white.withOpacity(0.55)),
+            color: const Color(0xFFF8F9FD),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.black.withOpacity(0.04)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Row(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Media library',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              Row(
+                children: [
+                  Text(
+                    'Media library',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  _GlassChip(icon: Icons.collections_outlined, label: '${widget.totalMedia} total'),
+                  const SizedBox(width: 8),
+                  _GlassChip(icon: Icons.check_circle_outline, label: '${widget.selectedCount} selected'),
+                ],
               ),
-              const Spacer(),
-              _GlassChip(icon: Icons.collections, label: '${widget.totalMedia} total'),
-              const SizedBox(width: 8),
-              _GlassChip(icon: Icons.check_circle, label: '${widget.selectedCount} selected'),
+              const SizedBox(height: 14),
+              _buildSearchField(context, scheme),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        _buildSearchField(context, scheme),
         if (state.isBulkDownloading)
           Padding(
             padding: const EdgeInsets.only(top: 14),
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: LinearGradient(
-                  colors: [
-                    scheme.primary.withOpacity(0.12),
-                    scheme.primary.withOpacity(0.18),
-                  ],
-                ),
-                border: Border.all(color: scheme.primary.withOpacity(0.35)),
+                color: scheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: scheme.primary.withOpacity(0.25)),
               ),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               child: Column(
@@ -1052,54 +1115,42 @@ class _ExpandedSidebarState extends State<_ExpandedSidebar> {
 
   Widget _buildSearchField(BuildContext context, ColorScheme scheme) {
     final state = widget.state;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.8),
-                scheme.surfaceContainerHigh.withOpacity(0.86),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withOpacity(0.55)),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 18),
-              Icon(Icons.search, size: 18, color: scheme.onSurface.withOpacity(0.6)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: widget.mediaSearchController,
-                  onChanged: widget.onSearchChanged,
-                  decoration: const InputDecoration(
-                    hintText: 'Filter by file name or URL',
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search, size: 18, color: scheme.onSurface.withOpacity(0.55)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: widget.mediaSearchController,
+              onChanged: widget.onSearchChanged,
+              decoration: const InputDecoration(
+                hintText: 'Filter by file name or URL',
+                border: InputBorder.none,
+                isDense: true,
               ),
-              if (state.mediaSearch.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _CircleIconButton(
-                    tooltip: 'Clear search',
-                    icon: Icons.close,
-                    onPressed: () {
-                      widget.mediaSearchController.clear();
-                      widget.onClearInput();
-                    },
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+          if (state.mediaSearch.isNotEmpty)
+            IconButton(
+              tooltip: 'Clear search',
+              style: IconButton.styleFrom(
+                minimumSize: const Size(32, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () {
+                widget.mediaSearchController.clear();
+                widget.onClearInput();
+              },
+              icon: Icon(Icons.close, size: 18, color: scheme.onSurface.withOpacity(0.55)),
+            ),
+        ],
       ),
     );
   }
@@ -1304,16 +1355,12 @@ class _GlassChip extends StatelessWidget {
             const TextStyle(fontWeight: FontWeight.w600, fontSize: 12);
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withOpacity(0.75),
-            scheme.surfaceContainerHigh.withOpacity(0.82),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withOpacity(0.55)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
@@ -1349,15 +1396,11 @@ class _GlassListTile extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.78),
-                scheme.surfaceContainerHigh.withOpacity(0.88),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(color: Colors.white.withOpacity(0.5)),
+            color: Colors.white,
+            border: Border.all(color: Colors.black.withOpacity(0.05)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 6)),
+            ],
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),

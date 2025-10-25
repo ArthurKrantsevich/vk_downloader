@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -217,7 +216,7 @@ class HomeController extends ChangeNotifier {
           ),
         )
         .toList(growable: false);
-    _thumbnailCache..removeWhere((key, _) => !filtered.contains(key));
+    _thumbnailCache.removeWhere((key, _) => !filtered.contains(key));
     _emit(state.copyWith(mediaItems: mediaItems, selectedMedia: <String>{}));
     _log('mediaHandler: raw=${rawUrls.length}, filtered=${mediaItems.length}');
   }
