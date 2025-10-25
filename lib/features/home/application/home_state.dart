@@ -18,7 +18,7 @@ class HomeState {
   });
 
   factory HomeState.initial() {
-    const initialUrl = 'https://vk.com';
+    const initialUrl = 'https://google.com';
     return const HomeState(
       currentUrl: initialUrl,
       visitedUrls: [initialUrl],

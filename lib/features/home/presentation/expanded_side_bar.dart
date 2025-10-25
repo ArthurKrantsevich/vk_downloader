@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:vk_downloader/features/home/presentation/status_badge.dart';
 
 import '../application/home_state.dart';
 import '../domain/media_item.dart';
 import 'circle_icon_button.dart';
 import 'glass_list_title.dart';
+import 'glass_pill_button.dart';
 import 'glass_segment_tabs.dart';
 import 'media_card.dart';
 
@@ -63,6 +65,8 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
   static const int _mediaSegment = 0;
   static const int _historySegment = 1;
   static const int _eventsSegment = 2;
+
+
 
   int _segment = _mediaSegment;
 
@@ -203,6 +207,36 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
 
   Widget _buildMediaControls(BuildContext context, ColorScheme scheme) {
     final state = widget.state;
+    final chips = <Widget>[
+      StatusBadge(
+        icon: Icons.collections_outlined,
+        label: 'Collected',
+        value: '${state.mediaItems.length} file${state.mediaItems.length == 1 ? '' : 's'}',
+      ),
+      StatusBadge(
+        icon: Icons.check_circle_outline,
+        label: 'Selected',
+        value: state.selectedMedia.isEmpty ? 'None yet' : '${state.selectedMedia.length} chosen',
+        highlight: state.selectedMedia.isNotEmpty,
+      ),
+      if (state.mediaSearch.isNotEmpty)
+        StatusBadge(
+          icon: Icons.filter_alt_outlined,
+          label: 'Filter',
+          value: '"${state.mediaSearch}"',
+          highlight: true,
+        ),
+      if (state.isBulkDownloading)
+        StatusBadge(
+          icon: Icons.download_for_offline_outlined,
+          label: state.isBulkCancelRequested ? 'Stopping' : 'Downloading',
+          value: state.bulkDownloadTotal == 0
+              ? 'Preparing'
+              : '${state.bulkDownloadProcessed}/${state.bulkDownloadTotal}',
+          highlight: true,
+          accentColor: scheme.primary,
+        ),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -241,6 +275,23 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
           spacing: 10,
           runSpacing: 10,
           children: [
+            GlassPillButton(
+              icon: Icons.select_all,
+              label: 'Select all',
+              emphasis: GlassButtonEmphasis.secondary,
+              onPressed: widget.filteredMedia.isEmpty || state.isBulkDownloading
+                  ? null
+                  : widget.onSelectAll,
+            ),
+            GlassPillButton(
+              icon: Icons.clear_all,
+              label: 'Clear selection',
+              emphasis: GlassButtonEmphasis.secondary,
+              onPressed:
+              state.selectedMedia.isNotEmpty && !state.isBulkDownloading
+                  ? widget.onClearSelection
+                  : null,
+            ),
             CircleIconButton(
               icon: Icons.download_for_offline,
               tooltip: widget.selectedCount > 0
@@ -268,6 +319,22 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
                   : widget.onClearMedia,
             ),
           ],
+        ),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: chips.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+            key: ValueKey('${chips.length}_${state.isBulkDownloading}'),
+            padding: const EdgeInsets.only(top: 12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: chips,
+            ),
+          ),
         ),
       ],
     );
