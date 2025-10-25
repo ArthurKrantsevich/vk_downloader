@@ -6,46 +6,78 @@ class CircleIconButton extends StatelessWidget {
     required this.icon,
     this.onPressed,
     this.tooltip,
+    this.active = false,
+    this.accentColor,
+    this.size = 36, // touch target
+    this.iconSize = 18,
   });
 
   final IconData icon;
   final VoidCallback? onPressed;
   final String? tooltip;
 
+  /// Highlighted (accent) state
+  final bool active;
+
+  /// Optional accent override; defaults to theme.primary
+  final Color? accentColor;
+
+  /// Outer diameter (tap target)
+  final double size;
+
+  /// Icon size
+  final double iconSize;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDisabled = onPressed == null;
+    final accent = accentColor ?? scheme.primary;
+
+    // Colors (no background fill)
+    // Similar idea to your pill logic, adapted for an icon button with transparent bg
+    final Color borderColor = isDisabled
+        ? scheme.outlineVariant.withValues(alpha: 0.25)
+        : (active
+        ? accent.withValues(alpha: 0.55)
+        : scheme.outlineVariant.withValues(alpha: 0.30));
+
+    final Color iconColor = isDisabled
+        ? scheme.onSurface.withValues(alpha: 0.35)
+        : (active
+        ? accent
+        : scheme.onSurface.withValues(alpha: 0.75));
+
     final button = Material(
       type: MaterialType.transparency,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(20),
+        customBorder: const CircleBorder(),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) {
+            return (active ? accent : scheme.primary).withValues(alpha: 0.10);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return scheme.primary.withValues(alpha: 0.04);
+          }
+          return Colors.transparent;
+        }),
         child: Ink(
+          width: size,
+          height: size,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-            boxShadow: [
-              if (!isDisabled)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-            ],
+            // Transparent background by request
+            color: Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor),
           ),
-          padding: const EdgeInsets.all(10),
-          child: Icon(
-            icon,
-            size: 18,
-            color: isDisabled
-                ? scheme.onSurface.withValues(alpha: 0.35)
-                : scheme.onSurface,
+          child: Center(
+            child: Icon(icon, size: iconSize, color: iconColor),
           ),
         ),
       ),
     );
+
     return tooltip != null ? Tooltip(message: tooltip!, child: button) : button;
   }
 }

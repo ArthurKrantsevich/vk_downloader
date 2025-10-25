@@ -1,13 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../application/home_state.dart';
 import '../domain/media_item.dart';
 import 'circle_icon_button.dart';
 import 'glass_list_title.dart';
-import 'glass_pill_button.dart';
+import 'glass_segment_tabs.dart';
 import 'media_card.dart';
 
 class ExpandedSidebar extends StatefulWidget {
@@ -110,15 +109,14 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundImage:
-                            (userAvatar != null && userAvatar.isNotEmpty)
+                        backgroundImage: (userAvatar != null && userAvatar.isNotEmpty)
                             ? NetworkImage(userAvatar)
                             : null,
                         child: (userAvatar == null || userAvatar.isEmpty)
                             ? Icon(
-                                Icons.person,
-                                color: scheme.onSurface.withValues(alpha: 0.6),
-                              )
+                          Icons.person,
+                          color: scheme.onSurface.withValues(alpha: 0.6),
+                        )
                             : null,
                       ),
                       const SizedBox(width: 14),
@@ -152,54 +150,22 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
                   ),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-              child: CupertinoSlidingSegmentedControl<int>(
-                groupValue: _segment,
-                backgroundColor: const Color(0xFFF0F3FA),
-                thumbColor: scheme.primary.withValues(alpha: 0.18),
-                onValueChanged: (value) {
-                  if (value != null) {
-                    setState(() => _segment = value);
-                  }
-                },
-                children: <int, Widget>{
-                  _mediaSegment: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 12,
-                    ),
-                    child: const Text('Media'),
-                  ),
-                  _historySegment: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 12,
-                    ),
-                    child: const Text('History'),
-                  ),
-                  _eventsSegment: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 12,
-                    ),
-                    child: const Text('Events'),
-                  ),
-                },
-              ),
-            ),
+
+            // Controls (only for media tab)
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               child: _segment == _mediaSegment
                   ? Padding(
-                      key: const ValueKey('mediaControls'),
-                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
-                      child: _buildMediaControls(context, scheme),
-                    )
+                key: const ValueKey('mediaControls'),
+                padding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
+                child: _buildMediaControls(context, scheme),
+              )
                   : const SizedBox.shrink(key: ValueKey('emptyControls')),
             ),
+
+            // Content
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 280),
@@ -216,6 +182,19 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
                 }(),
               ),
             ),
+
+            // ⬇️ NEW: Glass segmented tabs (bottom)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+              child: GlassSegmentedTabs(
+                currentIndex: _segment,
+                onChanged: (i) => setState(() => _segment = i),
+                mediaCount: widget.filteredMedia.length,
+                historyCount: widget.state.visitedUrls.length,
+                eventsCount: widget.state.events.length,
+                compact: false,
+              ),
+            ),
           ],
         ),
       ),
@@ -227,7 +206,7 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (state.isBulkDownloading)
+        if (state.isBulkDownloading) ...[
           Padding(
             padding: const EdgeInsets.only(top: 14),
             child: Container(
@@ -257,56 +236,33 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
             ),
           ),
         const SizedBox(height: 14),
+        ] else
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
-            GlassPillButton(
+            CircleIconButton(
               icon: Icons.download_for_offline,
-              label: widget.selectedCount > 0
+              tooltip: widget.selectedCount > 0
                   ? 'Download (${widget.selectedCount})'
                   : 'Download selected',
-              emphasis: GlassButtonEmphasis.primary,
               onPressed: widget.selectedCount > 0 && !state.isBulkDownloading
                   ? widget.onDownloadSelected
                   : null,
             ),
             if (state.isBulkDownloading)
-              GlassPillButton(
+              CircleIconButton(
                 icon: state.isBulkCancelRequested
                     ? Icons.hourglass_top
                     : Icons.stop_circle_outlined,
-                label: state.isBulkCancelRequested ? 'Stopping…' : 'Stop',
-                emphasis: GlassButtonEmphasis.primary,
-                accentColor: Theme.of(context).colorScheme.error,
+                tooltip: state.isBulkCancelRequested ? 'Stopping…' : 'Stop',
                 onPressed: state.isBulkCancelRequested
                     ? null
                     : widget.onStopDownloads,
               ),
-            GlassPillButton(
-              icon: Icons.select_all,
-              label: 'Select all',
-              emphasis: GlassButtonEmphasis.secondary,
-              onPressed: widget.filteredMedia.isEmpty || state.isBulkDownloading
-                  ? null
-                  : widget.onSelectAll,
-            ),
-            GlassPillButton(
-              icon: Icons.clear_all,
-              label: 'Clear selection',
-              emphasis: GlassButtonEmphasis.secondary,
-              onPressed:
-                  state.selectedMedia.isNotEmpty && !state.isBulkDownloading
-                  ? widget.onClearSelection
-                  : null,
-            ),
-            GlassPillButton(
+            CircleIconButton(
               icon: Icons.delete_outline,
-              label: 'Clear media',
-              emphasis: GlassButtonEmphasis.secondary,
-              accentColor: Theme.of(
-                context,
-              ).colorScheme.error.withValues(alpha: 0.8),
+              tooltip: 'Clear media',
               onPressed: widget.totalMedia == 0 || state.isBulkDownloading
                   ? null
                   : widget.onClearMedia,
@@ -349,37 +305,35 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
             isStream: isStream,
             isVideo: isVideo,
             checked: isChecked,
-            onToggle: isStream
-                ? null
-                : (v) => widget.onToggleSelection(url, v ?? false),
+            onToggle: isStream ? null : (v) => widget.onToggleSelection(url, v ?? false),
             onOpen: () => widget.openUrl(url),
             onDownload: isStream ? null : () => widget.onDownloadSingle(url),
             thumbnail: isStream || isVideo
                 ? Icon(isStream ? Icons.live_tv : Icons.videocam, size: 28)
                 : FutureBuilder<Uint8List?>(
-                    future: widget.loadThumbnail(url),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        );
-                      }
-                      if (snapshot.data == null) {
-                        return const Icon(Icons.image_not_supported);
-                      }
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.memory(
-                          snapshot.data!,
-                          fit: BoxFit.cover,
-                          width: 64,
-                          height: 64,
-                        ),
-                      );
-                    },
+              future: widget.loadThumbnail(url),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
+                if (snapshot.data == null) {
+                  return const Icon(Icons.image_not_supported);
+                }
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    snapshot.data!,
+                    fit: BoxFit.cover,
+                    width: 64,
+                    height: 64,
                   ),
+                );
+              },
+            ),
           );
         },
       ),
@@ -444,10 +398,10 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
   }
 
   Widget _buildEmptyState(
-    BuildContext context, {
-    required IconData icon,
-    required String message,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required String message,
+      }) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 

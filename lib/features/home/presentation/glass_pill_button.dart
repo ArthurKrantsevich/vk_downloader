@@ -48,7 +48,7 @@ class GlassPillButton extends StatelessWidget {
       opacity: isDisabled ? 0.55 : 1,
       child: Material(
         type: MaterialType.transparency,
-        clipBehavior: Clip.antiAlias, 
+        clipBehavior: Clip.antiAlias,
         borderRadius: BorderRadius.circular(32),
         child: InkWell(
           onTap: onPressed,
