@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'dart:typed_data';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -267,10 +268,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: state.isSidePanelVisible ? 440 : 64,
                 child: state.isSidePanelVisible
                     ? _ExpandedSidebar(
-                  state: state,
-                  filteredMedia: filteredMedia,
-                  totalMedia: totalMedia,
-                  selectedCount: selectedCount,
+                        state: state,
+                        filteredMedia: filteredMedia,
+                        totalMedia: totalMedia,
+                        selectedCount: selectedCount,
                   mediaSearchController: _mediaSearchController,
                   onDownloadSelected: () => _handleDownloadSelected(context),
                   onStopDownloads: _controller.cancelBulkDownload,
@@ -414,43 +415,65 @@ class _FrostedAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget> actions;
 
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => const Size.fromHeight(56);
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  scheme.surface.withOpacity(0.65),
-                  scheme.surfaceContainerHighest.withOpacity(0.65),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: SizedBox(
+        height: 56,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.72),
+                    scheme.surfaceContainerHigh.withOpacity(0.74),
+                  ],
+                ),
+                border: Border.all(color: Colors.white.withOpacity(0.6)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 24, offset: const Offset(0, 12)),
                 ],
               ),
-              border: Border.all(color: scheme.outlineVariant.withOpacity(0.6)),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 6),
-                if (leading != null) leading!,
-                const SizedBox(width: 10),
-                Expanded(child: DefaultTextStyle.merge(style: const TextStyle(fontSize: 18), child: title)),
-                const SizedBox(width: 8),
-                ...actions,
-                const SizedBox(width: 8),
-              ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: leading == null
+                          ? const SizedBox(width: 44)
+                          : SizedBox(width: 44, child: Center(child: leading!)),
+                    ),
+                    Center(
+                      child: DefaultTextStyle.merge(
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+                        child: title,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        spacing: 8,
+                        children: actions.isEmpty
+                            ? [const SizedBox(width: 44)]
+                            : actions
+                                .map((action) => SizedBox(height: 40, child: Center(child: action)))
+                                .toList(growable: false),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -469,18 +492,37 @@ class _CircleIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final btn = IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon),
-      style: IconButton.styleFrom(
-        shape: const CircleBorder(),
-        backgroundColor: scheme.surfaceContainerHigh,
-        foregroundColor: scheme.onSurface,
-        padding: const EdgeInsets.all(10),
+    final isDisabled = onPressed == null;
+    final button = Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(isDisabled ? 0.55 : 0.85),
+                scheme.surfaceContainerHigh.withOpacity(isDisabled ? 0.65 : 0.9),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(isDisabled ? 0.35 : 0.65)),
+            boxShadow: [
+              if (!isDisabled)
+                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 8)),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, size: 18, color: isDisabled ? scheme.onSurface.withOpacity(0.4) : scheme.onSurface),
+          ),
+        ),
       ),
     );
-    return btn;
+    return tooltip != null ? Tooltip(message: tooltip!, child: button) : button;
   }
 }
 
@@ -505,63 +547,171 @@ class _TopToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // URL input pill
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: scheme.outlineVariant.withOpacity(0.6)),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  const Icon(Icons.language, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: urlController,
-                      onSubmitted: onOpenUrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter URL',
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.82),
+                        scheme.surfaceContainerHigh.withOpacity(0.88),
+                      ],
                     ),
+                    border: Border.all(color: Colors.white.withOpacity(0.6)),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 8)),
+                    ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                      onPressed: () => onOpenUrl(urlController.text),
-                      child: const Text('Go'),
-                    ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 16),
+                      Icon(Icons.language, size: 20, color: scheme.onSurface.withOpacity(0.7)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: urlController,
+                          onSubmitted: onOpenUrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Enter or paste VK link',
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        child: _GlassPillButton(
+                          icon: Icons.check_circle,
+                          label: 'Go',
+                          emphasis: _GlassButtonEmphasis.primary,
+                          onPressed: () => onOpenUrl(urlController.text),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          _GlassPillButton(
+            icon: Icons.arrow_back,
+            label: 'Back',
+            emphasis: _GlassButtonEmphasis.secondary,
+            onPressed: onBack,
+          ),
+          const SizedBox(width: 8),
+          _GlassPillButton(
+            icon: Icons.photo_library,
+            label: 'Scan media',
+            emphasis: _GlassButtonEmphasis.primary,
+            onPressed: onScan,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _GlassButtonEmphasis { primary, secondary }
+
+class _GlassPillButton extends StatelessWidget {
+  const _GlassPillButton({
+    required this.icon,
+    required this.label,
+    required this.emphasis,
+    this.onPressed,
+    this.accentColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final _GlassButtonEmphasis emphasis;
+  final VoidCallback? onPressed;
+  final Color? accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDisabled = onPressed == null;
+    final bool isPrimary = emphasis == _GlassButtonEmphasis.primary;
+    final bool hasAccent = accentColor != null;
+
+    Color start;
+    Color end;
+    Color border;
+    Color textColor;
+
+    if (hasAccent) {
+      final base = accentColor!;
+      start = base.withOpacity(isDisabled ? 0.25 : 0.35);
+      end = base.withOpacity(isDisabled ? 0.35 : 0.55);
+      border = base.withOpacity(isDisabled ? 0.4 : 0.7);
+      final luminance = base.computeLuminance();
+      textColor = luminance > 0.6
+          ? Colors.black.withOpacity(isDisabled ? 0.6 : 0.9)
+          : Colors.white.withOpacity(isDisabled ? 0.7 : 0.95);
+    } else if (isPrimary) {
+      start = scheme.primary.withOpacity(isDisabled ? 0.2 : 0.32);
+      end = scheme.primary.withOpacity(isDisabled ? 0.28 : 0.48);
+      border = scheme.primary.withOpacity(isDisabled ? 0.35 : 0.55);
+      textColor = scheme.onPrimaryContainer;
+    } else {
+      start = Colors.white.withOpacity(isDisabled ? 0.4 : 0.75);
+      end = scheme.surfaceContainerHigh.withOpacity(isDisabled ? 0.45 : 0.85);
+      border = Colors.white.withOpacity(isDisabled ? 0.4 : 0.7);
+      textColor = scheme.onSurface.withOpacity(isDisabled ? 0.5 : 0.9);
+    }
+
+    return Opacity(
+      opacity: isDisabled ? 0.6 : 1,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(32),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [start, end],
+              ),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: border, width: 1.2),
+              boxShadow: [
+                if (!isDisabled)
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 10)),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 18, color: textColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          // Back
-          FilledButton.tonalIcon(
-            onPressed: onBack,
-            style: FilledButton.styleFrom(shape: const StadiumBorder()),
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Back'),
-          ),
-          const SizedBox(width: 8),
-          // Scan
-          FilledButton.icon(
-            onPressed: onScan,
-            style: FilledButton.styleFrom(shape: const StadiumBorder()),
-            icon: const Icon(Icons.photo_library),
-            label: const Text('Scan media'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -571,7 +721,7 @@ class _TopToolbar extends StatelessWidget {
 // Sidebar (modernized)
 // ---------------------------------------------------------------------------
 
-class _ExpandedSidebar extends StatelessWidget {
+class _ExpandedSidebar extends StatefulWidget {
   const _ExpandedSidebar({
     required this.state,
     required this.filteredMedia,
@@ -617,258 +767,162 @@ class _ExpandedSidebar extends StatelessWidget {
   final VoidCallback onClearInput;
 
   @override
+  State<_ExpandedSidebar> createState() => _ExpandedSidebarState();
+}
+
+class _ExpandedSidebarState extends State<_ExpandedSidebar> {
+  static const int _mediaSegment = 0;
+  static const int _historySegment = 1;
+  static const int _eventsSegment = 2;
+
+  int _segment = _mediaSegment;
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final state = widget.state;
     final userName = state.userInfo['name'];
     final userId = state.userInfo['id'];
     final userAvatar = state.userInfo['avatar'];
 
     return ClipRRect(
-      borderRadius: const BorderRadius.only(topLeft: Radius.circular(18)),
+      borderRadius: const BorderRadius.only(topLeft: Radius.circular(28)),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: scheme.surface.withOpacity(0.75),
-            border: Border(left: BorderSide(color: scheme.outlineVariant.withOpacity(0.6))),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withOpacity(0.84),
+                scheme.surfaceContainerHigh.withOpacity(0.92),
+              ],
+            ),
+            border: Border(left: BorderSide(color: Colors.white.withOpacity(0.55))),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (state.userInfo.isNotEmpty)
-                _SectionCard(
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: (userAvatar != null && userAvatar.isNotEmpty) ? NetworkImage(userAvatar) : null,
-                        child: (userAvatar == null || userAvatar.isEmpty) ? const Icon(Icons.person) : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(userName ?? 'VK user', style: Theme.of(context).textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            if (userId != null) Text('ID: $userId', style: Theme.of(context).textTheme.bodySmall),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Collapse media panel',
-                        icon: const Icon(Icons.keyboard_double_arrow_right),
-                        onPressed: onCollapse,
-                      ),
-                    ],
-                  ),
-                ),
-
-              _SectionCard(
-                child: Row(
-                  children: [
-                    Expanded(child: Text('Found media', style: Theme.of(context).textTheme.titleMedium)),
-                    Chip(label: Text('$totalMedia')),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      tooltip: 'Clear media list',
-                      icon: const Icon(Icons.delete_sweep),
-                      onPressed: state.isBulkDownloading || totalMedia == 0 ? null : onClearMedia,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Search field (pill)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: scheme.outlineVariant.withOpacity(0.6)),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 10),
-                      const Icon(Icons.search, size: 20),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: TextField(
-                          controller: mediaSearchController,
-                          onChanged: onSearchChanged,
-                          decoration: const InputDecoration(
-                            hintText: 'Search media URLs',
-                            border: InputBorder.none,
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      if (state.mediaSearch.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            mediaSearchController.clear();
-                            onClearInput();
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Actions
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(shape: const StadiumBorder(), padding: const EdgeInsets.symmetric(horizontal: 18)),
-                      onPressed: selectedCount > 0 && !state.isBulkDownloading ? onDownloadSelected : null,
-                      icon: state.isBulkDownloading
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.download_for_offline),
-                      label: Text(selectedCount > 0 ? 'Download selected ($selectedCount)' : 'Download selected'),
-                    ),
-                    if (state.isBulkDownloading)
-                      FilledButton.tonalIcon(
-                        style: FilledButton.styleFrom(shape: const StadiumBorder(), foregroundColor: Theme.of(context).colorScheme.error),
-                        onPressed: state.isBulkCancelRequested ? null : onStopDownloads,
-                        icon: Icon(state.isBulkCancelRequested ? Icons.hourglass_top : Icons.stop_circle_outlined),
-                        label: Text(state.isBulkCancelRequested ? 'Stopping…' : 'Stop'),
-                      ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                      onPressed: filteredMedia.isEmpty || state.isBulkDownloading ? null : onSelectAll,
-                      icon: const Icon(Icons.select_all),
-                      label: const Text('Select all'),
-                    ),
-                    TextButton.icon(
-                      style: TextButton.styleFrom(shape: const StadiumBorder()),
-                      onPressed: state.selectedMedia.isNotEmpty && !state.isBulkDownloading ? onClearSelection : null,
-                      icon: const Icon(Icons.clear_all),
-                      label: const Text('Clear selection'),
-                    ),
-                    TextButton.icon(
-                      style: TextButton.styleFrom(shape: const StadiumBorder()),
-                      onPressed: totalMedia == 0 || state.isBulkDownloading ? null : onClearMedia,
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Clear media'),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (state.isBulkDownloading)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    LinearProgressIndicator(
-                      value: state.bulkDownloadTotal > 0 ? state.bulkDownloadProcessed / state.bulkDownloadTotal : null,
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.85),
+                          scheme.surfaceContainerHigh.withOpacity(0.9),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.55)),
                     ),
-                    const SizedBox(height: 6),
-                    Text('Saved ${state.bulkDownloadSucceeded} of ${state.bulkDownloadTotal} files${state.isBulkCancelRequested ? ' — stopping…' : ''}', style: Theme.of(context).textTheme.bodySmall),
-                  ]),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundImage: (userAvatar != null && userAvatar.isNotEmpty)
+                                ? NetworkImage(userAvatar)
+                                : null,
+                            child: (userAvatar == null || userAvatar.isEmpty)
+                                ? Icon(Icons.person, color: scheme.onSurface.withOpacity(0.6))
+                                : null,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  userName ?? 'VK user',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (userId != null)
+                                  Text('ID: $userId', style: Theme.of(context).textTheme.bodySmall),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          _CircleIconButton(
+                            tooltip: 'Hide panel',
+                            icon: Icons.keyboard_double_arrow_right,
+                            onPressed: widget.onCollapse,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-
-              // Media list
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                child: CupertinoSlidingSegmentedControl<int>(
+                  groupValue: _segment,
+                  backgroundColor: Colors.white.withOpacity(0.35),
+                  thumbColor: scheme.primary.withOpacity(0.28),
+                  onValueChanged: (value) {
+                    if (value != null) {
+                      setState(() => _segment = value);
+                    }
+                  },
+                  children: <int, Widget>{
+                    _mediaSegment: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                      child: Text('Media'),
+                    ),
+                    _historySegment: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                      child: Text('History'),
+                    ),
+                    _eventsSegment: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                      child: Text('Events'),
+                    ),
+                  },
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: _segment == _mediaSegment
+                    ? Padding(
+                        key: const ValueKey('mediaControls'),
+                        padding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
+                        child: _buildMediaControls(context, scheme),
+                      )
+                    : const SizedBox.shrink(key: ValueKey('emptyControls')),
+              ),
               Expanded(
-                child: filteredMedia.isEmpty
-                    ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      totalMedia == 0 ? 'No media yet — press “Scan media”' : 'No media match your filter',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-                    : Scrollbar(
-                  controller: mediaScrollController,
-                  thumbVisibility: filteredMedia.length > 4,
-                  child: ListView.separated(
-                    controller: mediaScrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                    itemCount: filteredMedia.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, index) {
-                      final item = filteredMedia[index];
-                      final url = item.normalizedUrl;
-                      final isStream = item.isStream;
-                      final isVideo = item.isVideo;
-                      final isChecked = state.selectedMedia.contains(url);
-                      return _MediaCard(
-                        url: url,
-                        isStream: isStream,
-                        isVideo: isVideo,
-                        checked: isChecked,
-                        onToggle: isStream ? null : (v) => onToggleSelection(url, v ?? false),
-                        onOpen: () => openUrl(url),
-                        onDownload: isStream ? null : () => onDownloadSingle(url),
-                        thumbnail: isStream || isVideo
-                            ? Icon(isStream ? Icons.live_tv : Icons.videocam, size: 28)
-                            : FutureBuilder<Uint8List?>(
-                          future: loadThumbnail(url),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2));
-                            }
-                            if (snapshot.data == null) {
-                              return const Icon(Icons.image_not_supported);
-                            }
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.memory(snapshot.data!, fit: BoxFit.cover, width: 64, height: 64),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: () {
+                    if (_segment == _historySegment) {
+                      return _buildHistoryList(context, scheme);
+                    }
+                    if (_segment == _eventsSegment) {
+                      return _buildEventsList(context, scheme);
+                    }
+                    return _buildMediaList(context, scheme);
+                  }(),
                 ),
               ),
-
-              // History
-              _SectionHeader(title: 'Visited pages'),
-              SizedBox(
-                height: 110,
-                child: Scrollbar(
-                  controller: visitedScrollController,
-                  thumbVisibility: state.visitedUrls.length > 4,
-                  child: ListView.builder(
-                    controller: visitedScrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: state.visitedUrls.length,
-                    itemBuilder: (_, index) {
-                      final url = state.visitedUrls[index];
-                      return ListTile(
-                        dense: true,
-                        visualDensity: VisualDensity.compact,
-                        leading: const Icon(Icons.history, size: 18),
-                        title: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        onTap: () => openUrl(url),
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              // Events
-              _SectionHeader(title: 'Events log'),
-              SizedBox(
-                height: 110,
-                child: Scrollbar(
-                  controller: eventsScrollController,
-                  thumbVisibility: state.events.length > 4,
-                  child: ListView.builder(
-                    controller: eventsScrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    itemCount: state.events.length,
-                    itemBuilder: (_, index) => Text(state.events[index], style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2)),
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                child: _GlassPillButton(
+                  icon: Icons.keyboard_double_arrow_right,
+                  label: 'Collapse panel',
+                  emphasis: _GlassButtonEmphasis.secondary,
+                  onPressed: widget.onCollapse,
                 ),
               ),
             ],
@@ -877,8 +931,331 @@ class _ExpandedSidebar extends StatelessWidget {
       ),
     );
   }
-}
 
+  Widget _buildMediaControls(BuildContext context, ColorScheme scheme) {
+    final state = widget.state;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.82),
+                scheme.surfaceContainerHigh.withOpacity(0.88),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              Text(
+                'Media library',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              _GlassChip(icon: Icons.collections, label: '${widget.totalMedia} total'),
+              const SizedBox(width: 8),
+              _GlassChip(icon: Icons.check_circle, label: '${widget.selectedCount} selected'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildSearchField(context, scheme),
+        if (state.isBulkDownloading)
+          Padding(
+            padding: const EdgeInsets.only(top: 14),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(
+                  colors: [
+                    scheme.primary.withOpacity(0.12),
+                    scheme.primary.withOpacity(0.18),
+                  ],
+                ),
+                border: Border.all(color: scheme.primary.withOpacity(0.35)),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(
+                    value: state.bulkDownloadTotal > 0
+                        ? state.bulkDownloadProcessed / state.bulkDownloadTotal
+                        : null,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Saved ${state.bulkDownloadSucceeded} of ${state.bulkDownloadTotal} files${state.isBulkCancelRequested ? ' — stopping…' : ''}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _GlassPillButton(
+              icon: Icons.download_for_offline,
+              label: widget.selectedCount > 0 ? 'Download (${widget.selectedCount})' : 'Download selected',
+              emphasis: _GlassButtonEmphasis.primary,
+              onPressed: widget.selectedCount > 0 && !state.isBulkDownloading
+                  ? widget.onDownloadSelected
+                  : null,
+            ),
+            if (state.isBulkDownloading)
+              _GlassPillButton(
+                icon: state.isBulkCancelRequested ? Icons.hourglass_top : Icons.stop_circle_outlined,
+                label: state.isBulkCancelRequested ? 'Stopping…' : 'Stop',
+                emphasis: _GlassButtonEmphasis.primary,
+                accentColor: Theme.of(context).colorScheme.error,
+                onPressed: state.isBulkCancelRequested ? null : widget.onStopDownloads,
+              ),
+            _GlassPillButton(
+              icon: Icons.select_all,
+              label: 'Select all',
+              emphasis: _GlassButtonEmphasis.secondary,
+              onPressed: widget.filteredMedia.isEmpty || state.isBulkDownloading
+                  ? null
+                  : widget.onSelectAll,
+            ),
+            _GlassPillButton(
+              icon: Icons.clear_all,
+              label: 'Clear selection',
+              emphasis: _GlassButtonEmphasis.secondary,
+              onPressed: state.selectedMedia.isNotEmpty && !state.isBulkDownloading
+                  ? widget.onClearSelection
+                  : null,
+            ),
+            _GlassPillButton(
+              icon: Icons.delete_outline,
+              label: 'Clear media',
+              emphasis: _GlassButtonEmphasis.secondary,
+              accentColor: Theme.of(context).colorScheme.error.withOpacity(0.8),
+              onPressed: widget.totalMedia == 0 || state.isBulkDownloading
+                  ? null
+                  : widget.onClearMedia,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchField(BuildContext context, ColorScheme scheme) {
+    final state = widget.state;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.8),
+                scheme.surfaceContainerHigh.withOpacity(0.86),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 18),
+              Icon(Icons.search, size: 18, color: scheme.onSurface.withOpacity(0.6)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: widget.mediaSearchController,
+                  onChanged: widget.onSearchChanged,
+                  decoration: const InputDecoration(
+                    hintText: 'Filter by file name or URL',
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                ),
+              ),
+              if (state.mediaSearch.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _CircleIconButton(
+                    tooltip: 'Clear search',
+                    icon: Icons.close,
+                    onPressed: () {
+                      widget.mediaSearchController.clear();
+                      widget.onClearInput();
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaList(BuildContext context, ColorScheme scheme) {
+    final state = widget.state;
+    if (widget.filteredMedia.isEmpty) {
+      return _buildEmptyState(
+        context,
+        icon: Icons.hourglass_empty,
+        message: widget.totalMedia == 0
+            ? 'No media detected yet. Use "Scan media" to collect files.'
+            : 'No media match your filter. Try another keyword.',
+      );
+    }
+
+    return Scrollbar(
+      controller: widget.mediaScrollController,
+      thumbVisibility: widget.filteredMedia.length > 4,
+      child: ListView.separated(
+        key: const ValueKey('mediaList'),
+        controller: widget.mediaScrollController,
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+        itemCount: widget.filteredMedia.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) {
+          final item = widget.filteredMedia[index];
+          final url = item.normalizedUrl;
+          final isStream = item.isStream;
+          final isVideo = item.isVideo;
+          final isChecked = state.selectedMedia.contains(url);
+          return _MediaCard(
+            url: url,
+            isStream: isStream,
+            isVideo: isVideo,
+            checked: isChecked,
+            onToggle: isStream ? null : (v) => widget.onToggleSelection(url, v ?? false),
+            onOpen: () => widget.openUrl(url),
+            onDownload: isStream ? null : () => widget.onDownloadSingle(url),
+            thumbnail: isStream || isVideo
+                ? Icon(isStream ? Icons.live_tv : Icons.videocam, size: 28)
+                : FutureBuilder<Uint8List?>(
+                    future: widget.loadThumbnail(url),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2));
+                      }
+                      if (snapshot.data == null) {
+                        return const Icon(Icons.image_not_supported);
+                      }
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(snapshot.data!, fit: BoxFit.cover, width: 64, height: 64),
+                      );
+                    },
+                  ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHistoryList(BuildContext context, ColorScheme scheme) {
+    final visited = widget.state.visitedUrls;
+    if (visited.isEmpty) {
+      return _buildEmptyState(
+        context,
+        icon: Icons.travel_explore,
+        message: 'Pages you visit will appear here for quick access.',
+      );
+    }
+
+    return Scrollbar(
+      controller: widget.visitedScrollController,
+      thumbVisibility: visited.length > 4,
+      child: ListView.separated(
+        key: const ValueKey('historyList'),
+        controller: widget.visitedScrollController,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+        itemCount: visited.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) {
+          final url = visited[index];
+          return _GlassListTile(
+            icon: Icons.history,
+            title: url,
+            onTap: () => widget.openUrl(url),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEventsList(BuildContext context, ColorScheme scheme) {
+    final events = widget.state.events;
+    if (events.isEmpty) {
+      return _buildEmptyState(
+        context,
+        icon: Icons.bolt,
+        message: 'Download activity and status messages land here.',
+      );
+    }
+
+    return Scrollbar(
+      controller: widget.eventsScrollController,
+      thumbVisibility: events.length > 4,
+      child: ListView.separated(
+        key: const ValueKey('eventsList'),
+        controller: widget.eventsScrollController,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+        itemCount: events.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) {
+          return _GlassListTile(
+            icon: Icons.bolt,
+            title: events[index],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, {required IconData icon, required String message}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.82),
+                scheme.surfaceContainerHigh.withOpacity(0.9),
+              ],
+            ),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 28, color: scheme.onSurface.withOpacity(0.6)),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _CollapsedSidebar extends StatelessWidget {
   const _CollapsedSidebar({required this.onExpand});
   final VoidCallback onExpand;
@@ -910,37 +1287,108 @@ class _CollapsedSidebar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Atoms: Section header, card wrappers, media card
+// Atoms: glass chip, list tile, media card
 // ---------------------------------------------------------------------------
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
+class _GlassChip extends StatelessWidget {
+  const _GlassChip({required this.label, this.icon});
+
+  final String label;
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textStyle =
+        Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600) ??
+            const TextStyle(fontWeight: FontWeight.w600, fontSize: 12);
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.75),
+            scheme.surfaceContainerHigh.withOpacity(0.82),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.55)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: scheme.onSurface.withOpacity(0.65)),
+            const SizedBox(width: 4),
+          ],
+          Text(label, style: textStyle),
+        ],
+      ),
     );
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.child});
-  final Widget child;
+class _GlassListTile extends StatelessWidget {
+  const _GlassListTile({required this.icon, required this.title, this.onTap});
+
+  final IconData icon;
+  final String title;
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: scheme.outlineVariant.withOpacity(0.6)),
+    final isDisabled = onTap == null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.78),
+                scheme.surfaceContainerHigh.withOpacity(0.88),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: Colors.white.withOpacity(0.5)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scheme.primary.withOpacity(0.12),
+                  ),
+                  child: Icon(icon, size: 18, color: scheme.onSurface.withOpacity(0.65)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (!isDisabled) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.open_in_new, size: 18, color: scheme.onSurface.withOpacity(0.45)),
+                ],
+              ],
+            ),
+          ),
         ),
-        padding: const EdgeInsets.all(12),
-        child: child,
       ),
     );
   }
@@ -970,50 +1418,69 @@ class _MediaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final infoStyle =
+        Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurface.withOpacity(0.7));
+
     return Material(
-      color: scheme.surfaceContainerHigh,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: scheme.outlineVariant.withOpacity(0.6)),
-      ),
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(width: 64, height: 64, child: Center(child: thumbnail)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    if (isStream)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text('HLS stream (.m3u8) — use an HLS downloader', style: Theme.of(context).textTheme.bodySmall),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Tooltip(
-                message: isStream ? 'Streams cannot be selected' : (checked ? 'Remove from selection' : 'Add to selection'),
-                child: Checkbox(value: checked, onChanged: isStream ? null : onToggle),
-              ),
-              const SizedBox(width: 4),
-              Tooltip(
-                message: 'Download file',
-                child: IconButton(icon: const Icon(Icons.download), onPressed: isStream ? null : onDownload),
-              ),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.8),
+                scheme.surfaceContainerHigh.withOpacity(0.9),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 10)),
             ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(width: 64, height: 64, child: Center(child: thumbnail)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      if (isStream)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('HLS stream (.m3u8) — use an HLS downloader', style: infoStyle),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Tooltip(
+                  message: isStream
+                      ? 'Streams cannot be selected'
+                      : (checked ? 'Remove from selection' : 'Add to selection'),
+                  child: Checkbox.adaptive(value: checked, onChanged: isStream ? null : onToggle),
+                ),
+                const SizedBox(width: 8),
+                _CircleIconButton(
+                  tooltip: 'Download file',
+                  icon: Icons.download,
+                  onPressed: isStream ? null : onDownload,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
