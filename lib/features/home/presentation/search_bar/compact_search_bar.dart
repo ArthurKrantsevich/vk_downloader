@@ -9,14 +9,12 @@ class CompactSearchBar extends StatelessWidget {
     required this.urlController,
     required this.onOpenUrl,
     required this.onBack,
-    required this.onScan,
   });
 
   final HomeState state;
   final TextEditingController urlController;
   final Future<void> Function(String url) onOpenUrl;
   final Future<void> Function() onBack;
-  final Future<void> Function() onScan;
 
   @override
   Widget build(BuildContext context) {
@@ -82,15 +80,6 @@ class CompactSearchBar extends StatelessWidget {
                       onSubmit: onOpenUrl,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Scan
-                  _GlassPillButton(
-                    tooltip: 'Scan media on page',
-                    icon: Icons.photo_library_outlined,
-                    label: compact ? null : 'Scan',
-                    emphasis: PillEmphasis.accent,
-                    onTap: onScan,
-                  ),
                 ],
               ),
             ),
@@ -108,116 +97,6 @@ class CompactSearchBar extends StatelessWidget {
 
 enum PillEmphasis { primary, accent, neutral }
 
-class _GlassPillButton extends StatefulWidget {
-  const _GlassPillButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-    this.label,
-    this.emphasis = PillEmphasis.neutral,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-  final String? label;
-  final PillEmphasis emphasis;
-
-  @override
-  State<_GlassPillButton> createState() => _GlassPillButtonState();
-}
-
-class _GlassPillButtonState extends State<_GlassPillButton> {
-  bool _hover = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final hasLabel = widget.label != null && widget.label!.isNotEmpty;
-
-    Color base;
-    Color border;
-    Color fg;
-
-    switch (widget.emphasis) {
-      case PillEmphasis.primary:
-        base = scheme.primary.withValues(alpha: 0.14);
-        border = scheme.primary.withValues(alpha: 0.28);
-        fg = scheme.primary;
-        break;
-      case PillEmphasis.accent:
-        base = scheme.tertiary.withValues(alpha: 0.12);
-        border = scheme.tertiary.withValues(alpha: 0.26);
-        fg = scheme.tertiary;
-        break;
-      case PillEmphasis.neutral:
-      base = scheme.surface.withValues(alpha: 0.58);
-        border = scheme.outlineVariant.withValues(alpha: 0.32);
-        fg = scheme.onSurface.withValues(alpha: 0.86);
-    }
-
-    final bg = _pressed
-        ? base.withValues(alpha: base.a + 0.10)
-        : _hover
-        ? base.withValues(alpha: base.a + 0.06)
-        : base;
-
-    return Tooltip(
-      message: widget.tooltip,
-      waitDuration: const Duration(milliseconds: 250),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: GestureDetector(
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
-            height: 34,
-            padding: EdgeInsets.symmetric(horizontal: hasLabel ? 12 : 10),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: border, width: 1),
-              boxShadow: _hover
-                  ? [
-                BoxShadow(
-                  color: fg.withValues(alpha: 0.10),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(widget.icon, size: 18, color: fg),
-                if (hasLabel) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.label!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: fg,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _GlassIconButton extends StatefulWidget {
   const _GlassIconButton({

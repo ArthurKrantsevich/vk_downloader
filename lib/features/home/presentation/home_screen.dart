@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:vk_downloader/features/home/presentation/title_bar/title_bar.dart';
 import 'package:vk_downloader/features/home/presentation/search_bar/compact_search_bar.dart' as search;
+import 'package:vk_downloader/features/home/presentation/web_view/web_view_panel.dart';
 
 import '../../../core/persistence/preferences_store.dart';
 import '../../../core/persistence/secure_storage_client.dart';
@@ -257,7 +258,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     );
                                   }
                                 },
-                                onScan: _extractMediaFromPage,
                               ),
                               Expanded(
                                 child: DecoratedBox(
@@ -272,25 +272,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: _buildWebView(),
+                                  child: WebViewPanel(
+                                    controller: _controller,
+                                    settings: _webViewSettings,
+                                  ),
+
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      Container(
-                        width: 1,
-                        margin: const EdgeInsets.symmetric(vertical: 20),
-                        color: Colors.black.withValues(alpha: 0.05),
-                      ),
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 260),
+                        margin: EdgeInsets.only(top: 12, bottom: 12, right: 12),
                         curve: Curves.easeInOutCubic,
                         width: state.isSidePanelVisible ? 420 : 62,
                         child: state.isSidePanelVisible
                             ? ExpandedSidebar(
                           state: state,
+                          onScan: _extractMediaFromPage,
                           filteredMedia: filteredMedia,
                           totalMedia: totalMedia,
                           selectedCount: selectedCount,
@@ -333,161 +334,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return items.where((item) => item.normalizedUrl.toLowerCase().contains(query)).toList(growable: false);
   }
 
-  Widget _buildWebView() {
-    return InAppWebView(
-      initialUrlRequest: URLRequest(url: WebUri(HomeState.initial().currentUrl)),
-      initialSettings: _webViewSettings,
 
-      // 1) Lifecycle
-      onWebViewCreated: (controller) {
-        _controller.updateWebViewController(controller);
 
-        controller.addJavaScriptHandler(
-          handlerName: 'mediaHandler',
-          callback: (args) {
-            if (args.isEmpty) return null;
-            final raw = (args[0] as List).map((v) => '$v').toList();
-            _controller.replaceMedia(raw);
-            return null;
-          },
-        );
 
-        controller.addJavaScriptHandler(
-          handlerName: 'log',
-          callback: (args) {
-            if (args.isNotEmpty) _controller.addEvent('[js] ${args.first}');
-            return null;
-          },
-        );
-
-        _controller.recordHistory(HomeState.initial().currentUrl);
-      },
-
-      // 2) Target=_blank
-      onCreateWindow: (controller, createWindowAction) async {
-        final uri = createWindowAction.request.url;
-        if (uri == null) return false;
-        await controller.loadUrl(urlRequest: URLRequest(url: uri));
-        return false;
-      },
-
-      // 3) Navigation guard
-      shouldOverrideUrlLoading: (controller, action) async {
-        final url = action.request.url;
-        if (url == null) return NavigationActionPolicy.CANCEL;
-
-        final u = url.toString();
-        if (!(u.startsWith('http://') || u.startsWith('https://'))) {
-          _controller.addEvent('[blocked] $u');
-          return NavigationActionPolicy.CANCEL;
-        }
-
-        _controller.updateCurrentUrl(u);
-        return NavigationActionPolicy.ALLOW;
-      },
-
-      onLoadStart: (controller, url) {
-        final current = url?.toString();
-        if (current != null) _controller.updateCurrentUrl(current);
-      },
-
-      onLoadStop: (controller, url) async {
-        final current = url?.toString();
-        if (current != null) {
-          _controller.updateCurrentUrl(current);
-
-          if (current.contains('vk.com/feed') ||
-              current.contains('vk.com/id') ||
-              current.contains('vk.com/im')) {
-            await _controller.saveCookiesForUrl(current);
-          } else {
-            try {
-              final hasLogout = await controller.evaluateJavascript(
-                source: r'''
-                (function(){
-                  try {
-                    var el = document.querySelector('a[href*="/logout"]') || document.querySelector('[data-l="logout"]');
-                    return !!el;
-                  } catch(e){ return false; }
-                })();
-              ''',
-              );
-              if (hasLogout == true) {
-                await _controller.saveCookiesForUrl(current);
-              }
-            } catch (_) {}
-          }
-        }
-
-        try {
-          await controller.evaluateJavascript(source: _injectorJs);
-        } catch (_) {}
-
-        unawaited(_controller.refreshUserInfo());
-      },
-
-      onUpdateVisitedHistory: (controller, url, _) {
-        final current = url?.toString();
-        if (current != null) _controller.recordHistory(current);
-      },
-
-      // 4) Permissions
-      onPermissionRequest: (controller, request) async {
-        return PermissionResponse(
-          resources: request.resources,
-          action: PermissionResponseAction.GRANT,
-        );
-      },
-
-      // 5) Diagnostics
-      onConsoleMessage: (controller, console) {
-        _controller.addEvent('[console] ${console.messageLevel}: ${console.message}');
-      },
-      onProgressChanged: (controller, progress) {},
-
-      // 6) Errors
-      onReceivedError: (controller, request, error) {
-        _controller.addEvent('[error] type=${error.type} desc=${error.description} url=${request.url}');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Load error: ${error.description}')));
-      },
-      onReceivedHttpError: (controller, request, error) {
-        _controller.addEvent('[httpError] status=${error.statusCode} url=${request.url}');
-      },
-    );
-  }
-
-  static const String _injectorJs = r"""
-  (function(){
-    if (window.__vkdl_injected) return;
-    window.__vkdl_injected = true;
-
-    const log = (...args) => {
-      try {
-        if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-          window.flutter_inappwebview.callHandler('log', args.map(a => String(a)).join(' '));
-        }
-      } catch(e){}
-    };
-
-    try {
-      const pushState = history.pushState;
-      const replaceState = history.replaceState;
-      const fire = () => {
-        const ev = new Event('vkdl-urlchange');
-        window.dispatchEvent(ev);
-        log('[spa] URL changed:', location.href);
-      };
-      history.pushState = function() { pushState.apply(this, arguments); fire(); };
-      history.replaceState = function() { replaceState.apply(this, arguments); fire(); };
-      window.addEventListener('popstate', fire);
-      setTimeout(fire, 0);
-    } catch(e){}
-
-    log('[injector] ready on', location.href);
-  })();
-""";
 
   Future<void> _extractMediaFromPage() async {
     final controller = _controller.webViewController;
