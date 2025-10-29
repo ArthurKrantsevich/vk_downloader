@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:vk_downloader/features/home/presentation/title_bar/title_bar.dart';
 import 'package:vk_downloader/features/home/presentation/search_bar/compact_search_bar.dart' as search;
 import 'package:vk_downloader/features/home/presentation/web_view/web_view_panel.dart';
+import 'package:vk_downloader/features/home/presentation/widgets/browser_tab_bar.dart';
 
 import '../../../core/persistence/preferences_store.dart';
 import '../../../core/persistence/secure_storage_client.dart';
@@ -231,17 +232,18 @@ class _HomeScreenState extends State<HomeScreen> {
         final selectedCount = state.selectedMedia.length;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF4F6FB),
+          backgroundColor: Theme.of(context).colorScheme.surface,
           body: SafeArea(
             child: Column(
               children: [
                 const TitleBar(),
                 Expanded(
-                  child: Row(
+                  child: Stack(
                     children: [
-                      Expanded(
+                      // Main content area (full width)
+                      Positioned.fill(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
                           child: Column(
                             children: [
                               search.CompactSearchBar(
@@ -259,37 +261,74 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }
                                 },
                               ),
+                              const SizedBox(height: 6),
+                              // Tab bar
+                              BrowserTabBar(
+                                tabs: state.tabs,
+                                activeTabId: state.activeTabId,
+                                onTabSelected: (tabId) => _controller.switchToTab(tabId),
+                                onTabClosed: (tabId) => _controller.closeTab(tabId),
+                                onNewTab: () => _controller.createTab(),
+                                canAddTab: state.canAddTab,
+                              ),
                               Expanded(
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).colorScheme.surface,
-                                    border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                                    border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                                    borderRadius: const BorderRadius.only(
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12),
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.04),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
+                                        color: Colors.black.withValues(alpha: 0.06),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
                                       ),
                                     ],
                                   ),
-                                  child: WebViewPanel(
-                                    controller: _controller,
-                                    settings: _webViewSettings,
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.only(
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12),
+                                    ),
+                                    child: WebViewPanel(
+                                      controller: _controller,
+                                      settings: _webViewSettings,
+                                    ),
                                   ),
-
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 260),
-                        margin: EdgeInsets.only(top: 12, bottom: 12, right: 12),
-                        curve: Curves.easeInOutCubic,
-                        width: state.isSidePanelVisible ? 420 : 62,
-                        child: state.isSidePanelVisible
-                            ? ExpandedSidebar(
+
+                      // Backdrop overlay when sidebar is open
+                      if (state.isSidePanelVisible)
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onTap: () => _controller.setSidePanelVisible(false),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeInOutCubic,
+                              color: Colors.black.withValues(
+                                alpha: state.isSidePanelVisible ? 0.25 : 0.0,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // Left sidebar overlay
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeInOutCubicEmphasized,
+                        left: state.isSidePanelVisible ? 0 : -380,
+                        top: 0,
+                        bottom: 0,
+                        width: 380,
+                        child: ExpandedSidebar(
                           state: state,
                           onScan: _extractMediaFromPage,
                           filteredMedia: filteredMedia,
@@ -311,9 +350,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           eventsScrollController: _eventsScrollController,
                           onCollapse: () => _controller.setSidePanelVisible(false),
                           onClearInput: () => _handleMediaSearch(''),
-                        )
-                            : CollapsedSidebar(
-                          onExpand: () => _controller.setSidePanelVisible(true),
+                        ),
+                      ),
+
+                      // Toggle button - centered vertically
+                      Positioned.fill(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeInOutCubicEmphasized,
+                            margin: EdgeInsets.only(
+                              left: state.isSidePanelVisible ? 380 : 0,
+                            ),
+                            child: CollapsedSidebar(
+                              isExpanded: state.isSidePanelVisible,
+                              onToggle: () => _controller.setSidePanelVisible(!state.isSidePanelVisible),
+                              mediaCount: filteredMedia.length,
+                            ),
+                          ),
                         ),
                       ),
                     ],

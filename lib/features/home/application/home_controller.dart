@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../../core/persistence/preferences_store.dart';
 import '../../../core/persistence/secure_storage_client.dart';
+import '../domain/browser_tab.dart';
 import '../domain/media_filter.dart';
 import '../domain/media_item.dart';
 import '../domain/media_url_normalizer.dart';
@@ -157,6 +158,8 @@ class HomeController extends ChangeNotifier {
       bulkDownloadProcessed: newState.bulkDownloadProcessed,
       bulkDownloadSucceeded: newState.bulkDownloadSucceeded,
       isBulkCancelRequested: newState.isBulkCancelRequested,
+      tabs: List.unmodifiable(newState.tabs),
+      activeTabId: newState.activeTabId,
     );
     notifyListeners();
   }
@@ -456,5 +459,116 @@ class HomeController extends ChangeNotifier {
 
   Future<void> _persistPreferences() async {
     await _preferences.write(_prefsCache);
+  }
+
+  // ——— Tab Management ———
+
+  /// Create a new tab with the given URL (max 5 tabs)
+  void createTab({String? url}) {
+    if (!state.canAddTab) {
+      _log('Cannot create tab: maximum of 5 tabs reached');
+      return;
+    }
+
+    final targetUrl = url?.trim().isEmpty ?? true ? 'https://google.com' : url!;
+    final newTab = BrowserTab.create(url: targetUrl);
+    final updatedTabs = List<BrowserTab>.from(state.tabs)..add(newTab);
+
+    _emit(state.copyWith(
+      tabs: updatedTabs,
+      activeTabId: newTab.id,
+      currentUrl: targetUrl,
+    ));
+
+    _log('Created new tab: ${newTab.title}');
+  }
+
+  /// Switch to a different tab
+  Future<void> switchToTab(String tabId) async {
+    final tab = state.tabs.firstWhere(
+      (t) => t.id == tabId,
+      orElse: () => state.tabs.first,
+    );
+
+    if (tab.id == state.activeTabId) return;
+
+    _emit(state.copyWith(
+      activeTabId: tab.id,
+      currentUrl: tab.url,
+    ));
+
+    // Load the tab's URL in the webview
+    await webViewController?.loadUrl(
+      urlRequest: URLRequest(url: WebUri(tab.url)),
+    );
+
+    _log('Switched to tab: ${tab.title}');
+  }
+
+  /// Close a tab
+  void closeTab(String tabId) {
+    if (state.tabs.length == 1) {
+      _log('Cannot close the last tab');
+      return;
+    }
+
+    final tabs = List<BrowserTab>.from(state.tabs);
+    final tabIndex = tabs.indexWhere((t) => t.id == tabId);
+
+    if (tabIndex == -1) return;
+
+    final tabToRemove = tabs[tabIndex];
+    tabs.removeAt(tabIndex);
+
+    // If closing the active tab, switch to another tab
+    String newActiveTabId = state.activeTabId;
+    String newUrl = state.currentUrl;
+
+    if (tabToRemove.id == state.activeTabId) {
+      // Switch to the tab to the left, or the first tab if closing the leftmost
+      final newActiveTab = tabIndex > 0 ? tabs[tabIndex - 1] : tabs.first;
+      newActiveTabId = newActiveTab.id;
+      newUrl = newActiveTab.url;
+
+      // Load the new active tab's URL
+      unawaited(webViewController?.loadUrl(
+        urlRequest: URLRequest(url: WebUri(newUrl)),
+      ));
+    }
+
+    _emit(state.copyWith(
+      tabs: tabs,
+      activeTabId: newActiveTabId,
+      currentUrl: newUrl,
+    ));
+
+    _log('Closed tab');
+  }
+
+  /// Update the current tab's URL and title
+  void updateTabInfo(String url, {String? title}) {
+    final tabs = List<BrowserTab>.from(state.tabs);
+    final activeIndex = tabs.indexWhere((t) => t.id == state.activeTabId);
+
+    if (activeIndex == -1) return;
+
+    final currentTab = tabs[activeIndex];
+    final updatedTab = currentTab.copyWith(
+      url: url,
+      title: title ?? _extractTitleFromUrl(url),
+    );
+
+    tabs[activeIndex] = updatedTab;
+
+    _emit(state.copyWith(tabs: tabs));
+  }
+
+  String _extractTitleFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.host.replaceFirst('www.', '');
+    } catch (_) {
+      return 'Page';
+    }
   }
 }

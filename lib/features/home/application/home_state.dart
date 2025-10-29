@@ -1,3 +1,4 @@
+import '../domain/browser_tab.dart';
 import '../domain/media_item.dart';
 
 class HomeState {
@@ -15,17 +16,20 @@ class HomeState {
     required this.bulkDownloadProcessed,
     required this.bulkDownloadSucceeded,
     required this.isBulkCancelRequested,
+    required this.tabs,
+    required this.activeTabId,
   });
 
   factory HomeState.initial() {
     const initialUrl = 'https://google.com';
-    return const HomeState(
+    final initialTab = BrowserTab.create(url: initialUrl, title: 'Google');
+    return HomeState(
       currentUrl: initialUrl,
-      visitedUrls: [initialUrl],
-      events: [],
-      mediaItems: [],
-      selectedMedia: <String>{},
-      userInfo: <String, String>{},
+      visitedUrls: const [initialUrl],
+      events: const [],
+      mediaItems: const [],
+      selectedMedia: const <String>{},
+      userInfo: const <String, String>{},
       isSidePanelVisible: true,
       mediaSearch: '',
       isBulkDownloading: false,
@@ -33,6 +37,8 @@ class HomeState {
       bulkDownloadProcessed: 0,
       bulkDownloadSucceeded: 0,
       isBulkCancelRequested: false,
+      tabs: [initialTab],
+      activeTabId: initialTab.id,
     );
   }
 
@@ -49,6 +55,8 @@ class HomeState {
   final int bulkDownloadProcessed;
   final int bulkDownloadSucceeded;
   final bool isBulkCancelRequested;
+  final List<BrowserTab> tabs;
+  final String activeTabId;
 
   HomeState copyWith({
     String? currentUrl,
@@ -64,6 +72,8 @@ class HomeState {
     int? bulkDownloadProcessed,
     int? bulkDownloadSucceeded,
     bool? isBulkCancelRequested,
+    List<BrowserTab>? tabs,
+    String? activeTabId,
   }) {
     return HomeState(
       currentUrl: currentUrl ?? this.currentUrl,
@@ -82,6 +92,20 @@ class HomeState {
           bulkDownloadSucceeded ?? this.bulkDownloadSucceeded,
       isBulkCancelRequested:
           isBulkCancelRequested ?? this.isBulkCancelRequested,
+      tabs: tabs ?? this.tabs,
+      activeTabId: activeTabId ?? this.activeTabId,
     );
   }
+
+  /// Get the currently active tab
+  BrowserTab? get activeTab {
+    try {
+      return tabs.firstWhere((tab) => tab.id == activeTabId);
+    } catch (_) {
+      return tabs.isNotEmpty ? tabs.first : null;
+    }
+  }
+
+  /// Check if we can add more tabs (max 5)
+  bool get canAddTab => tabs.length < 5;
 }

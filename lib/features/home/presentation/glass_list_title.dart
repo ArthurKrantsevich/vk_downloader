@@ -48,30 +48,29 @@ class _GlassListTileState extends State<GlassListTile> {
     final bool clickable = widget.enabled && (widget.onTap != null || widget.onLongPress != null);
     final Color accent = widget.accentColor ?? (widget.destructive ? scheme.error : scheme.primary);
 
-    final double radius = 22.0;
-    final double hPad = widget.dense ? 14.0 : 18.0;
-    final double vPad = widget.dense ? 10.0 : 14.0;
+    final double radius = 14.0;
+    final double hPad = widget.dense ? 10.0 : 12.0;
+    final double vPad = widget.dense ? 6.0 : 8.0;
 
     // Motion + elevation
-    final double scale = _pressed ? 0.996 : 1.0;
+    final double scale = _pressed ? 0.98 : 1.0;
     final double blur = _pressed
-        ? 6
+        ? 4
         : (_hovered || _focused)
-        ? 16
-        : 12;
-    final double yOffset = _pressed
-        ? 3
-        : (_hovered || _focused)
-        ? 8
+        ? 10
         : 6;
+    final double yOffset = _pressed
+        ? 2
+        : (_hovered || _focused)
+        ? 4
+        : 3;
 
-    // Glass gradient (theme aware)
-    final Color glassStart = scheme.surface.withValues(alpha: 0.78);
-    final Color glassEnd = scheme.surfaceVariant.withValues(alpha: 0.92);
+    // Solid background
+    final Color solidBg = scheme.surface.withValues(alpha: 0.95);
 
     // Border & focus ring
-    final Color baseBorder = Colors.white.withValues(alpha: widget.selected ? 0.45 : 0.32);
-    final Color focusRing = (widget.destructive ? scheme.error : scheme.primary).withValues(alpha: 0.38);
+    final Color baseBorder = scheme.outlineVariant.withValues(alpha: widget.selected ? 0.35 : 0.2);
+    final Color focusRing = (widget.destructive ? scheme.error : scheme.primary).withValues(alpha: 0.35);
 
     return FocusableActionDetector(
       enabled: clickable,
@@ -105,11 +104,11 @@ class _GlassListTileState extends State<GlassListTile> {
                       : null,
                   onLongPress: clickable ? widget.onLongPress : null,
                   borderRadius: BorderRadius.circular(radius),
-                  overlayColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.pressed)) {
+                  overlayColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.pressed)) {
                       return accent.withValues(alpha: 0.10);
                     }
-                    if (states.contains(MaterialState.hovered)) {
+                    if (states.contains(WidgetState.hovered)) {
                       return scheme.primary.withValues(alpha: 0.03);
                     }
                     return Colors.transparent;
@@ -119,15 +118,11 @@ class _GlassListTileState extends State<GlassListTile> {
                     curve: Curves.easeOutCubic,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(radius),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [glassStart, glassEnd],
-                      ),
-                      border: Border.all(color: _focused ? focusRing : baseBorder, width: _focused ? 1.2 : 1.0),
+                      color: solidBg,
+                      border: Border.all(color: _focused ? focusRing : baseBorder, width: 1.0),
                       boxShadow: [
                         BoxShadow(
-                          color: scheme.shadow.withValues(alpha: kIsWeb ? 0.08 : 0.06),
+                          color: scheme.shadow.withValues(alpha: kIsWeb ? 0.06 : 0.04),
                           blurRadius: blur,
                           offset: Offset(0, yOffset),
                         ),
@@ -201,13 +196,13 @@ class _Content extends StatelessWidget {
         ? scheme.error
         : scheme.onSurface.withValues(alpha: selected ? 0.92 : 0.80);
 
-    final Color subtitleColor = scheme.onSurfaceVariant.withValues(alpha: 0.80);
+    final Color subtitleColor = scheme.onSurfaceVariant.withValues(alpha: 0.75);
 
-    final double iconSize = dense ? 16 : 18;
-    final double halo = dense ? 30 : 34;
+    final double iconSize = dense ? 14 : 16;
+    final double halo = dense ? 26 : 30;
 
-    // Ensure comfortable touch target (min 44 on iOS HIG spirit)
-    final minHeight = dense ? 44.0 : 48.0;
+    // Ensure comfortable touch target
+    final minHeight = dense ? 36.0 : 40.0;
 
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: minHeight),
@@ -220,26 +215,19 @@ class _Content extends StatelessWidget {
             height: halo,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                center: const Alignment(-0.2, -0.2),
-                radius: 1.0,
-                colors: [
-                  accent.withValues(alpha: selected ? 0.30 : 0.14),
-                  accent.withValues(alpha: 0.06),
-                ],
-              ),
-              border: Border.all(color: accent.withValues(alpha: 0.22)),
+              color: accent.withValues(alpha: selected ? 0.15 : 0.08),
+              border: Border.all(color: accent.withValues(alpha: 0.2)),
             ),
             alignment: Alignment.center,
             child: Icon(
               icon,
               size: iconSize,
               color: destructive
-                  ? scheme.onErrorContainer.withValues(alpha: 0.92)
-                  : accent.withValues(alpha: 0.82),
+                  ? scheme.onErrorContainer.withValues(alpha: 0.9)
+                  : accent.withValues(alpha: 0.8),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
 
           // Title + subtitle
           Expanded(
@@ -249,30 +237,32 @@ class _Content extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: (dense ? textTheme.bodyMedium : textTheme.titleSmall)?.copyWith(
+                  style: (dense ? textTheme.bodySmall : textTheme.bodyMedium)?.copyWith(
                     color: titleColor,
                     fontWeight: FontWeight.w600,
-                    height: 1.18,
+                    fontSize: dense ? 12 : 13,
+                    height: 1.1,
                   ),
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.bodySmall?.copyWith(
                       color: subtitleColor,
-                      height: 1.18,
+                      fontSize: 11,
+                      height: 1.1,
                     ),
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
 
           // Trailing affordance
           AnimatedOpacity(
@@ -281,8 +271,8 @@ class _Content extends StatelessWidget {
             child: trailing ??
                 Icon(
                   selected ? Icons.check_rounded : Icons.arrow_forward_ios_rounded,
-                  size: dense ? 14 : 16,
-                  color: scheme.onSurface.withValues(alpha: 0.46),
+                  size: dense ? 12 : 14,
+                  color: scheme.onSurface.withValues(alpha: 0.4),
                 ),
           ),
         ],

@@ -129,6 +129,7 @@ class _WebViewPanelState extends State<WebViewPanel> {
         if (current != null) {
           _lastLoadedUri = url;
           _c.updateCurrentUrl(current);
+          _c.updateTabInfo(current);
         }
       },
 
@@ -138,6 +139,16 @@ class _WebViewPanelState extends State<WebViewPanel> {
           _lastLoadedUri = url;
           _c.updateCurrentUrl(current);
           await _maybePersistCookies(controller, current);
+
+          // Update tab title from page title
+          try {
+            final title = await controller.getTitle();
+            if (title != null && title.trim().isNotEmpty) {
+              _c.updateTabInfo(current, title: title);
+            }
+          } catch (_) {
+            // Ignore title fetch errors
+          }
         }
 
         // Inject SPA URL-change hook + logger (idempotent, resilient)

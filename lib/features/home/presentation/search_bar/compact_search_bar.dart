@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/unified_button.dart';
 import '../../application/home_state.dart';
 
 class CompactSearchBar extends StatelessWidget {
@@ -29,48 +30,43 @@ class CompactSearchBar extends StatelessWidget {
         // Frosted top capsule
         ClipRRect(
           borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(22),
+            top: Radius.circular(12),
             bottom: Radius.zero,
           ),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              height: 50,
-              padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
+              height: 38,
+              padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8),
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(22),
+                  top: Radius.circular(12),
                   bottom: Radius.zero,
                 ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.surface.withValues(alpha: 0.70),
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-                  ],
-                ),
+                color: scheme.surface.withValues(alpha: 0.95),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.35),
+                  color: scheme.outlineVariant.withValues(alpha: 0.25),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: Row(
                 children: [
                   // Back
-                  _GlassIconButton(
+                  UnifiedButton(
                     tooltip: 'Back',
                     icon: Icons.arrow_back_ios_new_rounded,
                     onTap: onBack,
+                    size: ButtonSize.small,
+                    variant: ButtonVariant.neutral,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
 
                   // URL / Search field
                   Expanded(
@@ -96,66 +92,6 @@ class CompactSearchBar extends StatelessWidget {
  * ====================== */
 
 enum PillEmphasis { primary, accent, neutral }
-
-
-class _GlassIconButton extends StatefulWidget {
-  const _GlassIconButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  State<_GlassIconButton> createState() => _GlassIconButtonState();
-}
-
-class _GlassIconButtonState extends State<_GlassIconButton> {
-  bool _hover = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    final base = scheme.surface.withValues(alpha: 0.60);
-    final hover = scheme.surface.withValues(alpha: 0.72);
-    final press = scheme.surface.withValues(alpha: 0.82);
-    final bg = _pressed ? press : (_hover ? hover : base);
-
-    return Tooltip(
-      message: widget.tooltip,
-      waitDuration: const Duration(milliseconds: 250),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: GestureDetector(
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
-            height: 34,
-            width: 34,
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.35), width: 1),
-            ),
-            alignment: Alignment.center,
-            child: Icon(widget.icon, size: 18, color: scheme.onSurface.withValues(alpha: 0.86)),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _UrlCapsule extends StatefulWidget {
   const _UrlCapsule({
@@ -199,10 +135,10 @@ class _UrlCapsuleState extends State<_UrlCapsule> {
     final scheme = Theme.of(context).colorScheme;
     final focused = _focusNode.hasFocus;
 
-    final bg = scheme.surface.withValues(alpha: 0.78);
+    final bg = scheme.surface.withValues(alpha: 0.85);
     final borderColor = focused
-        ? scheme.primary.withValues(alpha: 0.45)
-        : scheme.outlineVariant.withValues(alpha: _hover ? 0.45 : 0.35);
+        ? scheme.primary.withValues(alpha: 0.4)
+        : scheme.outlineVariant.withValues(alpha: _hover ? 0.4 : 0.3);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -210,18 +146,18 @@ class _UrlCapsuleState extends State<_UrlCapsule> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOutCubic,
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: borderColor, width: focused ? 1.2 : 1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: borderColor, width: 1),
           boxShadow: focused
               ? [
             BoxShadow(
-              color: scheme.primary.withValues(alpha: 0.12),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              color: scheme.primary.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ]
               : null,
@@ -229,24 +165,25 @@ class _UrlCapsuleState extends State<_UrlCapsule> {
         alignment: Alignment.center,
         child: Row(
           children: [
-            Icon(Icons.search_rounded, size: 18, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
+            Icon(Icons.search_rounded, size: 16, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 6),
             Expanded(
               child: TextField(
                 controller: widget.controller,
                 focusNode: _focusNode,
                 onSubmitted: widget.onSubmit,
                 textInputAction: TextInputAction.go,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   hintText: widget.hintText,
                   hintStyle: TextStyle(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w500,
+                    fontSize: 13,
                   ),
                   border: InputBorder.none,
                   isDense: true,
-                  contentPadding: const EdgeInsets.only(top: 8, bottom: 8, left: 8),
+                  contentPadding: const EdgeInsets.only(top: 6, bottom: 6, left: 6),
                 ),
               ),
             ),
@@ -254,11 +191,11 @@ class _UrlCapsuleState extends State<_UrlCapsule> {
               opacity: widget.controller.text.isEmpty ? 0 : 1,
               duration: const Duration(milliseconds: 120),
               child: InkWell(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 onTap: _clear,
                 child: const Padding(
-                  padding: EdgeInsets.all(4.0),
-                  child: Icon(Icons.close_rounded, size: 18),
+                  padding: EdgeInsets.all(3.0),
+                  child: Icon(Icons.close_rounded, size: 16),
                 ),
               ),
             ),

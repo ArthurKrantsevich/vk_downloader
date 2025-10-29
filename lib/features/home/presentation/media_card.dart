@@ -46,14 +46,14 @@ class _MediaCardState extends State<MediaCard> {
     final textTheme = theme.textTheme;
 
     // Compact tokens
-    const radius = 18.0;
-    const hPad = 12.0;
-    const vPad = 10.0;
-    const thumb = 48.0;
+    const radius = 12.0;
+    const hPad = 8.0;
+    const vPad = 6.0;
+    const thumb = 40.0;
 
     // Small lift on hover/focus
-    final lift = (_hovered || _focused) ? 1.0 : 0.0;
-    final shadowOpacity = (_hovered || _focused) ? 0.08 : 0.05;
+    final lift = (_hovered || _focused) ? 0.5 : 0.0;
+    final shadowOpacity = (_hovered || _focused) ? 0.06 : 0.04;
 
     // Semantic label bits
     final parsed = _tryParse(widget.url);
@@ -114,21 +114,13 @@ class _MediaCardState extends State<MediaCard> {
               transform: Matrix4.translationValues(0, -lift, 0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(radius),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.surface.withValues(alpha: 0.76),
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-                  ],
-                ),
-                // Hairline white border to mimic glass edge
-                border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
+                color: scheme.surface.withValues(alpha: 0.95),
+                border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.2)),
                 boxShadow: [
                   BoxShadow(
                     color: scheme.shadow.withValues(alpha: shadowOpacity),
-                    blurRadius: 14,
-                    offset: const Offset(0, 8),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -143,15 +135,18 @@ class _MediaCardState extends State<MediaCard> {
                           ? 'Streams cannot be selected'
                           : (widget.checked ? 'Remove from selection' : 'Add to selection'),
                       waitDuration: const Duration(milliseconds: 250),
-                      child: Checkbox.adaptive(
-                        value: widget.checked,
-                        onChanged: widget.isStream ? null : widget.onToggle,
-                        tristate: false,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                      child: Transform.scale(
+                        scale: 0.85,
+                        child: Checkbox.adaptive(
+                          value: widget.checked,
+                          onChanged: widget.isStream ? null : widget.onToggle,
+                          tristate: false,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
 
                     // THUMBNAIL
                     RepaintBoundary(
@@ -162,7 +157,7 @@ class _MediaCardState extends State<MediaCard> {
                         child: widget.thumbnail,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 6),
 
                     // TEXT
                     Expanded(
@@ -174,7 +169,7 @@ class _MediaCardState extends State<MediaCard> {
                       ),
                     ),
 
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
 
                     // ACTION
                     Tooltip(
@@ -229,13 +224,13 @@ class _CompactThumb extends StatelessWidget {
       height: size,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.06),
-            blurRadius: 9,
-            offset: const Offset(0, 5),
+            color: scheme.shadow.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -253,17 +248,17 @@ class _CompactThumb extends StatelessWidget {
                 message: isVideo ? 'Video' : 'Stream',
                 waitDuration: const Duration(milliseconds: 250),
                 child: Container(
-                  margin: const EdgeInsets.all(6),
-                  width: 18,
-                  height: 18,
+                  margin: const EdgeInsets.all(4),
+                  width: 16,
+                  height: 16,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
+                    color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.60)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
                   ),
                   child: Icon(
                     isVideo ? Icons.play_arrow_rounded : Icons.waves_rounded,
-                    size: 12,
+                    size: 10,
                     color: Colors.white,
                   ),
                 ),
@@ -306,31 +301,34 @@ class _UrlBlock extends StatelessWidget {
         children: [
           // Compact, readable URL (proto light, host bold, path ellipsized)
           RichText(
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             text: TextSpan(
               children: [
                 TextSpan(
                   text: proto,
                   style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.55),
-                    height: 1.1,
+                    fontSize: 11,
+                    color: scheme.onSurface.withValues(alpha: 0.5),
+                    height: 1.0,
                   ),
                 ),
                 TextSpan(
                   text: host,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.88),
+                  style: textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: scheme.onSurface.withValues(alpha: 0.85),
                     fontWeight: FontWeight.w600,
-                    height: 1.1,
+                    height: 1.0,
                   ),
                 ),
                 if (path.isNotEmpty)
                   TextSpan(
                     text: '/$path',
                     style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.70),
-                      height: 1.1,
+                      fontSize: 11,
+                      color: scheme.onSurface.withValues(alpha: 0.65),
+                      height: 1.0,
                     ),
                   ),
               ],
@@ -338,11 +336,12 @@ class _UrlBlock extends StatelessWidget {
           ),
           if (isStream)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 2),
               child: Text(
                 'HLS stream (.m3u8)',
                 style: textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.60),
+                  fontSize: 10,
+                  color: scheme.onSurface.withValues(alpha: 0.55),
                 ),
               ),
             ),

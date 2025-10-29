@@ -1,15 +1,18 @@
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:vk_downloader/features/home/presentation/status_badge.dart';
 
 import '../application/home_state.dart';
 import '../domain/media_item.dart';
-import 'circle_icon_button.dart';
 import 'glass_list_title.dart';
 import 'glass_segment_tabs.dart';
 import 'media_card.dart';
+import 'widgets/download_progress_card.dart';
+import 'widgets/empty_state_card.dart';
+import 'widgets/format_filter_row.dart';
+import 'widgets/mini_action_button.dart';
+import 'widgets/sidebar_header_card.dart';
 
 class ExpandedSidebar extends StatefulWidget {
   const ExpandedSidebar({
@@ -63,7 +66,7 @@ class ExpandedSidebar extends StatefulWidget {
   State<ExpandedSidebar> createState() => ExpandedSidebarState();
 }
 
-class ExpandedSidebarState extends State<ExpandedSidebar> {
+class ExpandedSidebarState extends State<ExpandedSidebar> with SingleTickerProviderStateMixin {
   // Main tabs
   static const int _mediaSegment = 0;
   static const int _historySegment = 1;
@@ -77,6 +80,44 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
 
   int _segment = _mediaSegment;
   int _format = _fmtAll;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(-0.1, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   List<MediaItem> get _visibleMedia =>
       _applyFormatFilter(widget.filteredMedia, _format);
@@ -115,99 +156,110 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
     final visibleCount = _visibleMedia.length;
 
     return ClipRRect(
-      borderRadius: const BorderRadius.only(topLeft: Radius.circular(28)),
+      borderRadius: const BorderRadius.only(
+        topRight: Radius.circular(16),
+        bottomRight: Radius.circular(16),
+      ),
       child: Stack(
         children: [
-          // Soft gradient base
+          // Solid background with slight blur effect
           Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  scheme.surfaceContainerHighest.withValues(alpha: 0.85),
-                  scheme.surfaceBright.withValues(alpha: 0.92),
-                ],
-              ),
+              color: scheme.surface.withValues(alpha: 0.98),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(4, 0),
+                  spreadRadius: 0,
+                ),
+              ],
             ),
           ),
-          // Frosted layer
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          // Right border accent
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
             child: Container(
+              width: 1,
               decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.18),
-                  ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    scheme.primary.withValues(alpha: 0.0),
+                    scheme.primary.withValues(alpha: 0.15),
+                    scheme.primary.withValues(alpha: 0.15),
+                    scheme.primary.withValues(alpha: 0.0),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 28,
-                    offset: const Offset(-8, 0),
-                  ),
-                ],
               ),
             ),
           ),
           // Content
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _HeaderCard(
-                userName: userName ?? 'VK user',
-                userId: userId?.toString(),
-                userAvatar: userAvatar,
-                onCollapse: widget.onCollapse,
-              ),
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SidebarHeaderCard(
+                    userName: userName ?? 'VK user',
+                    userId: userId?.toString(),
+                    userAvatar: userAvatar,
+                    onCollapse: widget.onCollapse,
+                  ),
 
-              // Media-only controls + format separation
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                child: _segment == _mediaSegment
-                    ? Padding(
-                        key: const ValueKey('mediaControls'),
-                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-                        child: _buildMediaControls(context, scheme),
-                      )
-                    : const SizedBox.shrink(key: ValueKey('emptyControls')),
-              ),
+                  // Media-only controls + format separation
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: _segment == _mediaSegment
+                        ? Padding(
+                            key: const ValueKey('mediaControls'),
+                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                            child: _buildMediaControls(context, scheme),
+                          )
+                        : const SizedBox.shrink(key: ValueKey('emptyControls')),
+                  ),
 
-              // Content area
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: () {
-                    if (_segment == _historySegment) {
-                      return _buildHistoryList(context, scheme);
-                    }
-                    if (_segment == _eventsSegment) {
-                      return _buildEventsList(context, scheme);
-                    }
-                    return _buildMediaTable(context, scheme);
-                  }(),
-                ),
-              ),
+                  // Content area
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: () {
+                        if (_segment == _historySegment) {
+                          return _buildHistoryList(context, scheme);
+                        }
+                        if (_segment == _eventsSegment) {
+                          return _buildEventsList(context, scheme);
+                        }
+                        return _buildMediaTable(context, scheme);
+                      }(),
+                    ),
+                  ),
 
-              // Segmented tabs (media/history/events)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
-                child: GlassSegmentedTabs(
-                  currentIndex: _segment,
-                  onChanged: (i) => setState(() => _segment = i),
-                  mediaCount: visibleCount,
-                  // show count of visible items after format filter
-                  historyCount: widget.state.visitedUrls.length,
-                  eventsCount: widget.state.events.length,
-                  compact: false,
-                ),
+                  // Segmented tabs (media/history/events)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                    child: GlassSegmentedTabs(
+                      currentIndex: _segment,
+                      onChanged: (i) => setState(() => _segment = i),
+                      mediaCount: visibleCount,
+                      // show count of visible items after format filter
+                      historyCount: widget.state.visitedUrls.length,
+                      eventsCount: widget.state.events.length,
+                      compact: true,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -234,18 +286,18 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Format separation row
-        _FormatFilterRow(
+        FormatFilterRow(
           format: _format,
           imagesCount: _imagesCount,
           videosCount: _videosCount,
           streamsCount: _streamsCount,
           onChanged: (fmt) => setState(() => _format = fmt),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
         if (s.isBulkDownloading) ...[
-          _ProgressCard(state: s, scheme: scheme),
-          const SizedBox(height: 14),
+          DownloadProgressCard(state: s),
+          const SizedBox(height: 8),
         ],
 
         AnimatedSwitcher(
@@ -292,48 +344,53 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
 
     // Header with master checkbox + compact actions
     final header = Container(
-      margin: const EdgeInsets.fromLTRB(18, 6, 18, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: scheme.surface.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(12),
+        color: scheme.surface.withValues(alpha: 0.7),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.25),
+          color: scheme.outlineVariant.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
         children: [
           // Master checkbox (tri-state)
-          Checkbox(
-            value: allSelected ? true : (someSelected ? null : false),
-            tristate: true,
-            onChanged: (v) => toggleAll(v == true),
+          Transform.scale(
+            scale: 0.9,
+            child: Checkbox(
+              value: allSelected ? true : (someSelected ? null : false),
+              tristate: true,
+              onChanged: (v) => toggleAll(v == true),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Text(
             'Media (${visible.length})',
             style: Theme.of(
               context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           const Spacer(),
-          _MiniActionButton(
+          MiniActionButton(
             tooltip: 'Scan',
             icon: Icons.photo_library_outlined,
             onPressed: widget.onScan,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           // Clean selected
-          _MiniActionButton(
+          MiniActionButton(
             tooltip: 'Clean selected',
             icon: Icons.clear_all_rounded,
             onPressed: state.selectedMedia.isEmpty
                 ? null
                 : widget.onClearSelection,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           // Download selected
-          _MiniActionButton.filled(
+          MiniActionButton.filled(
             tooltip: 'Download selected',
             icon: Icons.download_rounded,
             onPressed: state.selectedMedia.isEmpty
@@ -354,9 +411,9 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
             child: ListView.separated(
               key: ValueKey('mediaTable_fmt_$_format'),
               controller: widget.mediaScrollController,
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
               itemCount: visible.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
               itemBuilder: (_, index) {
                 final item = visible[index];
                 final url = item.normalizedUrl;
@@ -428,7 +485,7 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
   Widget _buildHistoryList(BuildContext context, ColorScheme scheme) {
     final visited = widget.state.visitedUrls;
     if (visited.isEmpty) {
-      return const _EmptyState(
+      return const EmptyStateCard(
         icon: Icons.travel_explore,
         message: 'Pages you visit will appear here for quick access.',
       );
@@ -443,15 +500,16 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
       child: ListView.separated(
         key: const ValueKey('historyList_newestFirst'),
         controller: widget.visitedScrollController,
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, index) {
           final url = items[index];
           return GlassListTile(
             icon: Icons.history,
             title: url,
             onTap: () => widget.openUrl(url),
+            dense: true,
           );
         },
       ),
@@ -461,7 +519,7 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
   Widget _buildEventsList(BuildContext context, ColorScheme scheme) {
     final events = widget.state.events;
     if (events.isEmpty) {
-      return const _EmptyState(
+      return const EmptyStateCard(
         icon: Icons.bolt,
         message: 'Download activity and status messages land here.',
       );
@@ -476,365 +534,14 @@ class ExpandedSidebarState extends State<ExpandedSidebar> {
       child: ListView.separated(
         key: const ValueKey('eventsList_newestFirst'),
         controller: widget.eventsScrollController,
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, index) {
-          return GlassListTile(icon: Icons.bolt, title: items[index]);
+          return GlassListTile(icon: Icons.bolt, title: items[index], dense: true);
         },
       ),
     );
   }
 }
 
-class _MiniActionButton extends StatelessWidget {
-  const _MiniActionButton({required this.icon, this.onPressed, this.tooltip})
-    : filled = false;
-
-  const _MiniActionButton.filled({
-    required this.icon,
-    this.onPressed,
-    this.tooltip,
-  }) : filled = true;
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String? tooltip;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    );
-    final style = filled
-        ? FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: const Size(0, 36),
-            shape: shape,
-          )
-        : OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            minimumSize: const Size(0, 36),
-            shape: shape,
-            side: BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.35),
-            ),
-          );
-
-    final child = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [Icon(icon, size: 18)],
-    );
-
-    final button = filled
-        ? FilledButton(onPressed: onPressed, style: style, child: child)
-        : OutlinedButton(onPressed: onPressed, style: style, child: child);
-
-    return Tooltip(message: tooltip ?? '', child: button);
-  }
-}
-
-/// Header user card with soft glass look
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({
-    required this.userName,
-    required this.userId,
-    required this.userAvatar,
-    required this.onCollapse,
-  });
-
-  final String userName;
-  final String? userId;
-  final String? userAvatar;
-  final VoidCallback onCollapse;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 6),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            colors: [
-              scheme.surface.withValues(alpha: 0.75),
-              scheme.surfaceContainerHigh.withValues(alpha: 0.88),
-            ],
-          ),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: scheme.shadow.withValues(alpha: 0.08),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundImage: (userAvatar != null && userAvatar!.isNotEmpty)
-                  ? NetworkImage(userAvatar!)
-                  : null,
-              child: (userAvatar == null || userAvatar!.isEmpty)
-                  ? Icon(
-                      Icons.person,
-                      color: scheme.onSurface.withValues(alpha: 0.6),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    userName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (userId != null)
-                    Text(
-                      'ID: $userId',
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            CircleIconButton(
-              tooltip: 'Hide panel',
-              icon: Icons.keyboard_double_arrow_right,
-              onPressed: onCollapse,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bulk download progress card
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.state, required this.scheme});
-
-  final HomeState state;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = state.bulkDownloadTotal;
-    final processed = state.bulkDownloadProcessed;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LinearProgressIndicator(value: total > 0 ? processed / total : null),
-          const SizedBox(height: 6),
-          Text(
-            'Saved ${state.bulkDownloadSucceeded} of ${state.bulkDownloadTotal} files'
-            '${state.isBulkCancelRequested ? ' — stopping…' : ''}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Format filter row (All / Images / Videos / Streams)
-class _FormatFilterRow extends StatelessWidget {
-  const _FormatFilterRow({
-    required this.format,
-    required this.imagesCount,
-    required this.videosCount,
-    required this.streamsCount,
-    required this.onChanged,
-  });
-
-  final int format;
-  final int imagesCount;
-  final int videosCount;
-  final int streamsCount;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    Widget chip(String label, bool selected, VoidCallback onTap) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected
-                ? scheme.primary.withValues(alpha: 0.12)
-                : scheme.surface.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected
-                  ? scheme.primary.withValues(alpha: 0.35)
-                  : scheme.outlineVariant.withValues(alpha: 0.25),
-            ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.16),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500),
-          ),
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        chip(
-          'All',
-          format == ExpandedSidebarState._fmtAll,
-          () => onChanged(ExpandedSidebarState._fmtAll),
-        ),
-        chip(
-          'Images ($imagesCount)',
-          format == ExpandedSidebarState._fmtImages,
-          () => onChanged(ExpandedSidebarState._fmtImages),
-        ),
-        chip(
-          'Videos ($videosCount)',
-          format == ExpandedSidebarState._fmtVideos,
-          () => onChanged(ExpandedSidebarState._fmtVideos),
-        ),
-        chip(
-          'Streams ($streamsCount)',
-          format == ExpandedSidebarState._fmtStreams,
-          () => onChanged(ExpandedSidebarState._fmtStreams),
-        ),
-      ],
-    );
-  }
-}
-
-/// Elegant empty state
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.message});
-
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 360),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                scheme.surfaceBright.withValues(alpha: 0.82),
-                scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-              ],
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.shadow.withValues(alpha: 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.18),
-                      scheme.primary.withValues(alpha: 0.05),
-                    ],
-                  ),
-                ),
-                child: Icon(
-                  icon,
-                  size: 32,
-                  color: scheme.primary.withValues(alpha: 0.65),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.78),
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: 36,
-                height: 3,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(3),
-                  gradient: LinearGradient(
-                    colors: [
-                      scheme.primary.withValues(alpha: 0.40),
-                      scheme.secondary.withValues(alpha: 0.25),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

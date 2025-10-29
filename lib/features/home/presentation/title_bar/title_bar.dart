@@ -68,13 +68,13 @@ class _TitleBarState extends State<TitleBar> with WindowListener {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      height: 40,
+      height: 32,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow.withValues(alpha: 0.2),
+        color: colorScheme.surfaceContainerLow.withValues(alpha: 0.15),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -86,14 +86,15 @@ class _TitleBarState extends State<TitleBar> with WindowListener {
               child: Text(
                 "Media Downloader",
                 style: TextStyle(
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface.withValues(alpha: 0.9),
+                  color: colorScheme.onSurface.withValues(alpha: 0.85),
                 ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
                 Expanded(
@@ -110,9 +111,9 @@ class _TitleBarState extends State<TitleBar> with WindowListener {
                   tooltip: "Collapse",
                   onPressed: () => windowManager.minimize(),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Padding(
-                  padding: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.only(right: 4),
                   child: _circleIconButton(
                     context,
                     icon: _windowState == WindowState.maximized
@@ -151,11 +152,12 @@ class _TitleBarState extends State<TitleBar> with WindowListener {
       child: IconButton(
         icon: Icon(
           icon,
-          size: 18,
+          size: 16,
           color: colorScheme.onSurface.withValues(alpha: 0.75),
         ),
-        splashRadius: 20,
+        splashRadius: 16,
         padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
         onPressed: onPressed,
         style: ButtonStyle(
           overlayColor: WidgetStateProperty.all(
